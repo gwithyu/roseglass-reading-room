@@ -2,6 +2,7 @@
 import {loadReadingPosition,saveReadingPosition,clearReadingPosition} from './reading-progress.mjs';
 import {loadNotes,saveNotes} from './study-notes.mjs';
 import {buildTextChunks} from './segment-text.mjs';
+import {makePageImage,canvasPngBlob,samePageSnapshot,buildVisualPrompt,exportSize} from './visual-packet.mjs';
 const $ = (id) => document.getElementById(id);
 const ui = {
   file: $('file-input'), open: $('open-file'), filename: $('filename'), kind: $('file-kind'),
@@ -13,7 +14,7 @@ const ui = {
 };
 const state = { kind: 'demo', file: null, document: null, pptx: null, page: 0, count: 1, pagesText: [],
   fileKey: null, bookmarks: new Set(), notes: [], zoom: 1, zoomMode: 'fit-page', widthZoom: 1, resumed: false, selected: null, renderToken: 0, pdfjs: null,
-  searchIndexPromise: null, sendIndex: 0, sendChunks: [], loading: false, renderTask: null };
+  searchIndexPromise: null, sendIndex: 0, sendChunks: [], loading: false, renderTask: null, canvasPage: null, sharing: false };
 const MAX_SEGMENT = 9000;
 const ZOOM_MIN = 0.5, ZOOM_MAX = 3, ZOOM_STEP = 0.1;
 const ZOOM_STORAGE = 'roseglass:v1:zoom';
@@ -117,7 +118,7 @@ function addNote(){
 }
 function resetPanels() { ui.searchResults.replaceChildren(); ui.searchResults.textContent = '输入关键词查找页面文字'; ui.thumbList.replaceChildren(); state.sendIndex = 0; state.sendChunks = []; }
 function switchDoc(kind, name, count) {
-  state.kind = kind; state.page = 0; state.count = count; state.selected = null;
+  state.kind = kind; state.page = 0; state.count = count; state.selected = null; state.canvasPage = null;
   ui.filename.textContent = filenameShort(name); ui.kind.textContent = kind.toUpperCase();
   ui.demo.classList.add('hidden'); ui.canvas.classList.remove('hidden'); ui.pin.classList.add('hidden');
   restoreReadingPosition(); resetPanels(); restoreBookmarks(); restoreNotes(); refreshCounter();
@@ -201,6 +202,7 @@ async function render() {
   if(state.kind==='demo'){renderDemo();return;}
   if(!state.document && !state.pptx)return;
   const token = ++state.renderToken;
+  state.canvasPage = null;
   if (state.renderTask) { try { state.renderTask.cancel(); } catch {} state.renderTask=null; }
   ui.pin.classList.add('hidden');
   const canvas = ui.canvas;
@@ -229,6 +231,7 @@ async function render() {
     if(token!==state.renderToken)return;
     canvas.style.width=w+'px';canvas.style.height=Math.round(w*(canvas.height/canvas.width||9/16))+'px';
   }
+  state.canvasPage = {fileKey:state.fileKey,page:state.page,kind:state.kind,renderToken:token};
   if (state.selected && state.selected.page===state.page) showPin(state.selected.x,state.selected.y);
   refreshCounter();
 }
@@ -305,7 +308,81 @@ async function sendPacket(text) {
   try{await navigator.clipboard.writeText(text);notice('已复制：粘贴到聊天中继续共读');}
   catch{fallbackDownload(text,'reading-context.txt');notice('当前环境无法直连聊天，已导出文字');}
 }
-async function sendCurrent() {const t=await pageText(state.page);await sendPacket(createPacket(t));}
+/** Explicit transfer only; a screenshot is not silently uploaded on page navigation. */
+async function captureVisualPage(){
+  if(state.kind==='demo')throw new Error('请先打开自己的 PDF 或 PPTX');
+  const snapshot = {fileKey:state.fileKey,page:state.page,kind:state.kind};
+  if(!state.canvasPage || !samePageSnapshot({...snapshot,renderToken:state.canvasPage.renderToken},state.canvasPage)){
+    await render();
+  }
+  if(!state.canvasPage || !samePageSnapshot(state.canvasPage,{...snapshot,renderToken:state.renderToken}))throw new Error('页面正在切换，请稍后再试');
+  // Export from the underlying document at high resolution, independent of mobile zoom.
+  const selected=state.selected?.page===snapshot.page?{x:state.selected.x,y:state.selected.y}:null;
+  const raw=document.createElement('canvas');
+  if(snapshot.kind==='pdf'){
+    const documentRef=state.document;
+    const page=await documentRef.getPage(snapshot.page+1);
+    const natural=page.getViewport({scale:1});
+    const size=exportSize(natural.width,natural.height);
+    const viewport=page.getViewport({scale:size.scale});
+    raw.width=size.width;raw.height=size.height;
+    await page.render({canvasContext:raw.getContext('2d',{alpha:false}),viewport}).promise;
+  } else {
+    const deckRef=state.pptx;
+    await deckRef.renderSlide(snapshot.page,raw,2400);
+  }
+  if(state.fileKey!==snapshot.fileKey || state.page!==snapshot.page || state.kind!==snapshot.kind)throw new Error('课件已切换，请重新操作');
+  const imageCanvas=makePageImage(raw,selected);
+  const blob=await canvasPngBlob(imageCanvas);
+  if(state.fileKey!==snapshot.fileKey || state.page!==snapshot.page || state.kind!==snapshot.kind)throw new Error('课件已切换，请重新操作');
+  return {blob, snapshot, focus:selected};
+}
+function downloadBlob(blob,name){
+  const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),5000);
+}
+async function exportCurrentImage(){
+  const {blob,snapshot}=await captureVisualPage();
+  downloadBlob(blob,`slide-${snapshot.page+1}-marked.png`);
+  notice('已导出真实页面 PNG；可直接拖进聊天');
+}
+async function manualVisualFallback(blob,pageContext,page){
+  downloadBlob(blob,`slide-${page+1}-marked.png`);
+  try{await navigator.clipboard.writeText(buildVisualPrompt(pageContext,false));notice('ChatGPT 当前无法直接附图：已下载 PNG 并复制文字，请手动上传图片');}
+  catch{fallbackDownload(buildVisualPrompt(pageContext,false),'reading-context.txt');notice('ChatGPT 当前无法直接附图：请上传下载的 PNG 与文字文件');}
+}
+async function sendCurrent(){
+  if(state.sharing)return notice('正在准备当前页图像，请稍候');
+  state.sharing=true;$('send-chat').disabled=true;
+  try{
+    setStatus('正在准备当前页真实图像和点击位置…');
+    const {blob,snapshot}=await captureVisualPage();
+    const extracted=await pageText(snapshot.page);
+    if(snapshot.fileKey!==state.fileKey || snapshot.page!==state.page)throw new Error('页面发生变化，请重新发送');
+    const context=createPacket(extracted,snapshot.page);
+    const host=window.openai;
+    if(typeof host?.uploadFile!=='function'||typeof host?.setWidgetState!=='function'||typeof host?.sendFollowUpMessage!=='function'){
+      await manualVisualFallback(blob,context,snapshot.page);
+      setStatus('图像未自动发送；请将导出的 PNG 拖入当前聊天');return;
+    }
+    try {
+      const file=new File([blob],`slide-${snapshot.page+1}.png`,{type:'image/png'});
+      const upload=await host.uploadFile(file,{library:false});
+      if(!upload?.fileId)throw new Error('ChatGPT 未返回文件引用');
+      if(snapshot.fileKey!==state.fileKey||snapshot.page!==state.page)throw new Error('页面在上传时改变');
+      await host.setWidgetState({
+        modelContent: `阅读器提交：第 ${snapshot.page+1} 页的图像引用。必须确认实际图像是否可见，不可只凭 ID 推断。`,
+        privateContent:{page:snapshot.page+1,documentKey:snapshot.fileKey},
+        imageIds:[upload.fileId]
+      });
+      await host.sendFollowUpMessage({prompt:buildVisualPrompt(context,true)});
+      setStatus('已尝试提交 PNG 引用与文字；是否实际可见需要在聊天中核对');
+      notice('已请求图文共读；请核对聊天中的图片是否真正可见');
+    } catch(error){
+      await manualVisualFallback(blob,context,snapshot.page);
+      setStatus('自动附图不可用；请手动上传已导出的 PNG');
+    }
+  } finally {state.sharing=false;$('send-chat').disabled=false;}
+}
 async function sendFullChunks() {
   if(state.kind==='demo')return notice('请先打开课件');
   setStatus('正在建立全文分段…'); await ensurePdfText();
@@ -358,6 +435,7 @@ $('reset-reading').onclick=()=>resetReadingPosition().catch(e=>notice('重置失
 $('save-note').onclick=addNote;
 $('bookmark-current').onclick=bookmark;$('copy-context').onclick=()=>copyPacket().catch(e=>notice(e.message));
 $('send-chat').onclick=()=>sendCurrent().catch(e=>notice('发送失败：'+e.message));
+$('export-image').onclick=()=>exportCurrentImage().catch(e=>notice('图片导出失败：'+e.message));
 $('zoom-in').onclick=()=>setZoom('custom',(state.zoomMode==='fit-page'?1:state.zoomMode==='fit-width'?state.widthZoom:state.zoom)+ZOOM_STEP);
 $('zoom-out').onclick=()=>setZoom('custom',(state.zoomMode==='fit-page'?1:state.zoomMode==='fit-width'?state.widthZoom:state.zoom)-ZOOM_STEP);
 ui.zoomRange.addEventListener('input',()=>setZoom('custom',Number(ui.zoomRange.value)/100,true));
