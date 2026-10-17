@@ -26,6 +26,7 @@ export function createLiveSync(fetcher=fetch){
     get expiresAt(){return session?.expiresAt??null;},
     get roomId(){return session?.roomId??null;},
     async start(rawEndpoint){
+      if(session && session.expiresAt<=Date.now()){session=null;endpoint=null;lastSequence=0;}
       if(session)throw new Error('请先关闭已有共读会话');
       const origin=normalizeRelayEndpoint(rawEndpoint);
       const room=await api(fetcher,origin+'/v1/rooms',{method:'POST'});
