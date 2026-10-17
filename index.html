@@ -24,7 +24,7 @@
         <button id="open-file" class="tool-button prominent" title="打开 PDF 或 PPTX" aria-label="打开课件">＋ <span>打开课件</span></button>
         <button id="toggle-thumbs" class="tool-button" title="显示或隐藏缩略图" aria-label="切换缩略图">▦</button>
         <button id="toggle-search" class="tool-button" title="全文搜索" aria-label="全文搜索">⌕</button>
-        <button id="toggle-bookmarks" class="tool-button" title="书签" aria-label="查看书签">♧</button>
+        <button id="toggle-bookmarks" class="tool-button" title="书签和重点笔记" aria-label="查看书签和重点笔记">♧</button>
         <button id="fullscreen" class="tool-button" title="全屏阅读" aria-label="全屏阅读">⛶</button>
       </div>
       <input type="file" id="file-input" accept=".pdf,.pptx,application/pdf,application/vnd.openxmlformats-officedocument.presentationml.presentation" hidden />
@@ -78,7 +78,17 @@
           <button id="bookmark-current" class="icon-button" aria-label="收藏这一页" title="收藏这一页">☆</button>
         </div>
       </section>
-      <aside id="bookmarks" class="bookmarks glass hidden" aria-label="收藏的页面"><div class="panel-heading">BOOKMARKS <button id="close-bookmarks" aria-label="关闭书签">×</button></div><button id="reset-reading" class="reset-reading" title="只重置本课件的页码与缩放，不删除书签">重置本课件的阅读位置</button><div id="bookmark-list" class="bookmark-list"><p class="muted">还没有书签</p></div></aside>
+      <aside id="bookmarks" class="bookmarks glass hidden" aria-label="书签与重点笔记">
+        <div class="panel-heading">BOOKMARKS & NOTES <button id="close-bookmarks" aria-label="关闭书签与笔记">×</button></div>
+        <div id="bookmark-list" class="bookmark-list"><p class="muted">还没有书签</p></div>
+        <div class="notes-heading">本课件重点 <span id="notes-count">0</span></div>
+        <p class="notes-hint">点击课件标记位置，再在这里记下理解或疑问。</p>
+        <label class="visually-hidden" for="note-text">这页的学习笔记</label>
+        <textarea id="note-text" class="note-text" maxlength="480" rows="3" placeholder="记下这页的重点、疑问…"></textarea>
+        <button id="save-note" class="save-note" title="保存本页笔记和当前点选位置">＋ 保存本页重点</button>
+        <div id="note-list" class="note-list" aria-live="polite"></div>
+        <button id="reset-reading" class="reset-reading" title="只重置本课件的页码与缩放，不删除书签与笔记">重置本课件的阅读位置</button>
+      </aside>
     </section>
 
     <footer class="bottom glass">
