@@ -16,7 +16,7 @@ const ui = {
 };
 const state = { kind: 'demo', file: null, document: null, pptx: null, page: 0, count: 1, pagesText: [],
   fileKey: null, bookmarks: new Set(), notes: [], zoom: 1, zoomMode: 'fit-page', widthZoom: 1, resumed: false, selected: null, renderToken: 0, pdfjs: null,
-  searchIndexPromise: null, sendIndex: 0, sendChunks: [], loading: false, renderTask: null, canvasPage: null, sharing: false };
+  searchIndexPromise: null, sendIndex: 0, sendChunks: [], awaitingManualSegment: null, sendingChunks: false, loading: false, renderTask: null, canvasPage: null, sharing: false };
 const MAX_SEGMENT = 9000;
 const ZOOM_MIN = 0.5, ZOOM_MAX = 3, ZOOM_STEP = 0.1;
 const ZOOM_STORAGE = 'roseglass:v1:zoom';
@@ -118,7 +118,7 @@ function addNote(){
   else notice('重点笔记已保存在本地浏览器');
   ui.noteText.value='';drawNotes();
 }
-function resetPanels() { ui.searchResults.replaceChildren(); ui.searchResults.textContent = '输入关键词查找页面文字'; ui.thumbList.replaceChildren(); state.sendIndex = 0; state.sendChunks = []; }
+function resetPanels() { ui.searchResults.replaceChildren(); ui.searchResults.textContent = '输入关键词查找页面文字'; ui.thumbList.replaceChildren(); state.sendIndex = 0; state.sendChunks = []; state.awaitingManualSegment=null; $('confirm-segment').classList.add('hidden'); }
 function switchDoc(kind, name, count) {
   state.kind = kind; state.page = 0; state.count = count; state.selected = null; state.canvasPage = null;
   ui.filename.textContent = filenameShort(name); ui.kind.textContent = kind.toUpperCase();
@@ -251,24 +251,33 @@ ui.canvas.addEventListener('click',(e)=>{
 });
 function bookmark() {if(state.bookmarks.has(state.page))state.bookmarks.delete(state.page);else state.bookmarks.add(state.page);persistBookmarks();drawBookmarks();notice(state.bookmarks.has(state.page)?'这一页已收藏':'已取消收藏');}
 async function ensurePdfText() {
-  if (state.kind!=='pdf')return;
+  if (state.kind !== 'pdf') return;
   if (state.searchIndexPromise) return state.searchIndexPromise;
-  const doc=state.document; state.searchIndexPromise=(async()=>{
-    for(let i=0;i<doc.numPages;i++) {
+  const doc=state.document, textTarget=state.pagesText;
+  const guard=()=>{if(state.document!==doc||state.pagesText!==textTarget)throw new Error('课件已经切换，旧的全文索引已取消');};
+  const work=(async()=>{
+    for(let i=0;i<doc.numPages;i++){
+      guard();
+      if(typeof textTarget[i]==='string')continue;
       const page=await doc.getPage(i+1);
       const content=await page.getTextContent();
-      state.pagesText[i]=content.items.map(x=>x.str||'').join(' ');
+      guard();
+      textTarget[i]=content.items.map(x=>x.str||'').join(' ');
+      if(i%24===0)await new Promise(resolve=>setTimeout(resolve,0));
     }
   })();
-  return state.searchIndexPromise;
+  state.searchIndexPromise=work;
+  try {return await work;} catch(e){if(state.searchIndexPromise===work)state.searchIndexPromise=null;throw e;}
 }
 async function pageText(i) {
   if(state.kind==='demo')return '示例页面：打开自己的 PDF 或 PPTX 开始阅读。';
-  if(state.kind==='pdf' && !state.pagesText[i]) {
-    const page=await state.document.getPage(i+1);const t=await page.getTextContent();
-    state.pagesText[i]=t.items.map(x=>x.str||'').join(' ');
+  const doc=state.document, target=state.pagesText, kind=state.kind;
+  if(kind==='pdf' && typeof target[i]!=='string') {
+    const page=await doc.getPage(i+1), t=await page.getTextContent();
+    if(state.document!==doc||state.pagesText!==target||state.kind!==kind)throw new Error('课件已经切换，请重新选择本页');
+    target[i]=t.items.map(x=>x.str||'').join(' ');
   }
-  return state.pagesText[i] || '';
+  return target[i] || '';
 }
 async function search() {
   const q=ui.search.value.trim();ui.searchResults.replaceChildren(); if(!q)return;
@@ -306,9 +315,20 @@ async function copyPacket() {
 }
 function fallbackDownload(text,name) {const url=URL.createObjectURL(new Blob([text],{type:'text/plain;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),2000);}
 async function sendPacket(text) {
-  if(window.openai?.sendFollowUpMessage) {await window.openai.sendFollowUpMessage({prompt:text});notice('已发送阅读上下文到当前聊天');return;}
-  try{await navigator.clipboard.writeText(text);notice('已复制：粘贴到聊天中继续共读');}
-  catch{fallbackDownload(text,'reading-context.txt');notice('当前环境无法直连聊天，已导出文字');}
+  if(window.openai?.sendFollowUpMessage) {
+    await window.openai.sendFollowUpMessage({prompt:text});
+    notice('已请求当前聊天接收阅读文字');
+    return 'sent';
+  }
+  try {
+    await navigator.clipboard.writeText(text);
+    notice('文字已复制，尚未发送到 ChatGPT');
+    return 'copied';
+  } catch {
+    fallbackDownload(text,'reading-context.txt');
+    notice('已导出文字文件，尚未发送到 ChatGPT');
+    return 'exported';
+  }
 }
 /** Explicit transfer only; a screenshot is not silently uploaded on page navigation. */
 async function captureVisualPage(){
@@ -418,15 +438,36 @@ async function sendVisionChallenge(){
 
 async function sendFullChunks() {
   if(state.kind==='demo')return notice('请先打开课件');
-  setStatus('正在建立全文分段…'); await ensurePdfText();
-  if (!state.sendChunks.length) {
-    state.sendChunks=buildTextChunks(state.pagesText,MAX_SEGMENT);
-  }
-  if(state.sendIndex>=state.sendChunks.length){state.sendIndex=0;notice('全文分段已全部发送；再次点击可重发');return;}
-  const k=state.sendIndex,part=state.sendChunks[k];
-  const text=`课件全文分段 ${k+1}/${state.sendChunks.length}，覆盖第 ${part.from}–${part.to} 页。请关联此前分段，并保留页码。仅根据这些实际文字讨论；无文字层的图像需单独上传。\n课件：${state.file.name}\n${part.text}`;
-  await sendPacket(text);state.sendIndex++;
-  setStatus(`全文分段进度 ${state.sendIndex}/${state.sendChunks.length} · 可继续发送下一段`);
+  if(state.sendingChunks)return notice('正在准备上一段，请稍候');
+  if(state.awaitingManualSegment!==null)return notice('本段尚未确认粘贴，请先点「已粘贴，下一段」');
+  state.sendingChunks=true;
+  const doc=state.document,pptx=state.pptx,key=state.fileKey,pages=state.pagesText;
+  const current=()=>state.document===doc&&state.pptx===pptx&&state.fileKey===key&&state.pagesText===pages;
+  try {
+    setStatus('正在建立全文分段…');await ensurePdfText();
+    if(!current())throw new Error('课件已经切换，旧全文不会发送');
+    if(!state.sendChunks.length)state.sendChunks=buildTextChunks(pages,MAX_SEGMENT);
+    if(state.sendIndex>=state.sendChunks.length){state.sendIndex=0;notice('全文已处理完毕；再次点击可从第一段重新开始');return;}
+    const k=state.sendIndex,part=state.sendChunks[k];
+    const text=`课件全文分段 ${k+1}/${state.sendChunks.length}，覆盖第 ${part.from}–${part.to} 页。请关联此前分段，并保留页码。仅根据这些实际文字讨论；无文字层的图像需单独上传。\n课件：${state.file.name}\n${part.text}`;
+    const outcome=await sendPacket(text);
+    if(!current())throw new Error('课件已经切换，旧全文的结果已丢弃');
+    if(outcome==='sent') {
+      state.sendIndex++;
+      setStatus(`已请求 Chat 接收全文第 ${state.sendIndex}/${state.sendChunks.length} 段`);
+    } else {
+      state.awaitingManualSegment=k;
+      $('confirm-segment').classList.remove('hidden');
+      setStatus(`第 ${k+1}/${state.sendChunks.length} 段已${outcome==='copied'?'复制':'导出'}，尚未发送；粘贴进 Chat 后请确认`);
+    }
+  } finally {state.sendingChunks=false;}
+}
+function confirmManualSegment(){
+  if(state.awaitingManualSegment===null)return;
+  state.sendIndex=state.awaitingManualSegment+1;
+  state.awaitingManualSegment=null;
+  $('confirm-segment').classList.add('hidden');
+  setStatus(`已由你确认粘贴第 ${state.sendIndex}/${state.sendChunks.length} 段；下一段就绪`);
 }
 // Lightweight OOXML text extraction. Supports deflated and stored ZIP entries, rejects extreme expansion.
 async function extractPptxTexts(arrayBuffer, count) {
@@ -486,6 +527,7 @@ restoreZoom();updateZoomUI();renderDemo();
 let resizeTimer;new ResizeObserver(()=>{clearTimeout(resizeTimer);resizeTimer=setTimeout(()=>render(),110);}).observe(ui.viewport);
 let dragDepth=0;window.addEventListener('dragenter',e=>{if(!e.dataTransfer?.types?.includes('Files'))return;e.preventDefault();dragDepth++;$('drop-hint').classList.remove('hidden');});window.addEventListener('dragover',e=>{if(e.dataTransfer?.types?.includes('Files'))e.preventDefault();});window.addEventListener('dragleave',()=>{dragDepth--;if(dragDepth<=0){dragDepth=0;$('drop-hint').classList.add('hidden');}});window.addEventListener('drop',e=>{e.preventDefault();dragDepth=0;$('drop-hint').classList.add('hidden');loadFile(e.dataTransfer?.files?.[0]);});
 // Public demo enhancement: let users read a synthetic slide with zero network access.
-$('copy-context').insertAdjacentHTML('beforebegin','<button id="send-full" class="bottom-button secondary" title="发送全部课件的下一段">全文分段 ↗</button>');
+$('copy-context').insertAdjacentHTML('beforebegin','<button id="send-full" class="bottom-button secondary" title="发送或复制下一段全文">全文分段 ↗</button><button id="confirm-segment" class="bottom-button secondary hidden" title="确认已把本段粘贴进当前聊天">已粘贴，下一段 ✓</button>');
 $('send-full').onclick=()=>sendFullChunks().catch(e=>notice('全文分段失败：'+e.message));
+$('confirm-segment').onclick=confirmManualSegment;
 setStatus('浏览器本地阅读 · 无后台上传 · 选 PDF/PPTX 开始');
