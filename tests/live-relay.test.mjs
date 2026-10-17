@@ -101,3 +101,26 @@ test('MCP lists only the one explicitly read-only operation',async()=>{
   const r=await send(env,'/mcp','POST',{data:{jsonrpc:'2.0',id:2,method:'tools/list'}});
   assert.deepEqual(r.json.result.tools.map(x=>x.name),['get_selected_slide']);
 });
+
+test('racing two clicks cannot roll back to an older client sequence',async()=>{
+  const {env}=setup(),room=await make(env);
+  await Promise.all([
+    write(env,room,data(7,{text:'new-click'})),
+    write(env,room,data(6,{text:'old-click'}))
+  ]);
+  const result=await readMcp(env,room.roomId,room.readKey);
+  assert.match(JSON.stringify(result.json),/new-click/);
+  assert.doesNotMatch(JSON.stringify(result.json),/old-click/);
+});
+test('revoke racing a queued write must never recreate a closed room',async()=>{
+  const {env,rooms}=setup(),room=await make(env);
+  await write(env,room,data(1));
+  await Promise.all([
+    write(env,room,data(2,{text:'potential-late-write'})),
+    send(env,`/v1/rooms/${room.roomId}/close`,'DELETE',{auth:room.writeKey})
+  ]);
+  // Regardless of ordering, close has to leave the room absent.
+  assert.equal(await rooms.storage(room.roomId).get('record'),undefined);
+  const after=await readMcp(env,room.roomId,room.readKey);
+  assert.match(JSON.stringify(after.json),/ROOM_EXPIRED/);
+});
