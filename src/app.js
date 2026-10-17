@@ -3,6 +3,8 @@ import {loadReadingPosition,saveReadingPosition,clearReadingPosition} from './re
 import {loadNotes,saveNotes} from './study-notes.mjs';
 import {buildTextChunks} from './segment-text.mjs';
 import {makePageImage,canvasPngBlob,samePageSnapshot,buildVisualPrompt,exportSize} from './visual-packet.mjs';
+import {relayImageToChat} from './chat-image-bridge.mjs';
+import {makeChallenge,paintChallenge,BLIND_PROMPT} from './vision-challenge.mjs';
 const $ = (id) => document.getElementById(id);
 const ui = {
   file: $('file-input'), open: $('open-file'), filename: $('filename'), kind: $('file-kind'),
@@ -354,35 +356,66 @@ async function sendCurrent(){
   if(state.sharing)return notice('正在准备当前页图像，请稍候');
   state.sharing=true;$('send-chat').disabled=true;
   try{
-    setStatus('正在准备当前页真实图像和点击位置…');
+    setStatus('正在准备真实页面图像和点击位置…');
     const {blob,snapshot}=await captureVisualPage();
+    const docAtCapture=state.document, pptAtCapture=state.pptx;
     const extracted=await pageText(snapshot.page);
-    if(snapshot.fileKey!==state.fileKey || snapshot.page!==state.page)throw new Error('页面发生变化，请重新发送');
+    const stillCurrent=()=>snapshot.fileKey===state.fileKey && snapshot.page===state.page && snapshot.kind===state.kind && docAtCapture===state.document && pptAtCapture===state.pptx;
+    if(!stillCurrent())throw new Error('页面已切换，旧图像不会发送');
     const context=createPacket(extracted,snapshot.page);
-    const host=window.openai;
-    if(typeof host?.uploadFile!=='function'||typeof host?.setWidgetState!=='function'||typeof host?.sendFollowUpMessage!=='function'){
+    const result=await relayImageToChat({
+      host:window.openai,blob,fileName:`slide-${snapshot.page+1}.png`,
+      prompt:buildVisualPrompt(context,true),
+      modelContent:`阅读器请求共享第 ${snapshot.page+1} 页的页面图像；请核实像素真实可见，不可仅凭文字推断。`,
+      privateContent:{page:snapshot.page+1},canProceed:stillCurrent,
+      onPhase:phase=>{if(phase==='uploaded')setStatus('图片已上传；尚未证明模型看到像素');
+        else if(phase==='linked')setStatus('图片引用已设置；正在请求当前聊天回应');}
+    });
+    if(result.status==='cancelled'){setStatus('检测到课件切换，已取消发送旧页面');notice('课件已切换，未发送过期页面');return;}
+    if(result.status==='followup_requested'){
+      setStatus('已请求聊天回应，但模型是否看到图像仍待盲测确认');
+      notice('已请求图文共读；请以聊天对图像内容的回答为准');
+    }else{
       await manualVisualFallback(blob,context,snapshot.page);
-      setStatus('图像未自动发送；请将导出的 PNG 拖入当前聊天');return;
-    }
-    try {
-      const file=new File([blob],`slide-${snapshot.page+1}.png`,{type:'image/png'});
-      const upload=await host.uploadFile(file,{library:false});
-      if(!upload?.fileId)throw new Error('ChatGPT 未返回文件引用');
-      if(snapshot.fileKey!==state.fileKey||snapshot.page!==state.page)throw new Error('页面在上传时改变');
-      await host.setWidgetState({
-        modelContent: `阅读器提交：第 ${snapshot.page+1} 页的图像引用。必须确认实际图像是否可见，不可只凭 ID 推断。`,
-        privateContent:{page:snapshot.page+1,documentKey:snapshot.fileKey},
-        imageIds:[upload.fileId]
-      });
-      await host.sendFollowUpMessage({prompt:buildVisualPrompt(context,true)});
-      setStatus('已尝试提交 PNG 引用与文字；是否实际可见需要在聊天中核对');
-      notice('已请求图文共读；请核对聊天中的图片是否真正可见');
-    } catch(error){
-      await manualVisualFallback(blob,context,snapshot.page);
-      setStatus('自动附图不可用；请手动上传已导出的 PNG');
+      setStatus('自动图像提交失败或不可用，已导出 PNG 供手动上传');
     }
   } finally {state.sharing=false;$('send-chat').disabled=false;}
 }
+
+let visionSequence=0;
+function makeNewVisionChallenge(){
+  const panel=$('vision-canvas');
+  paintChallenge(panel,makeChallenge());
+  visionSequence++;
+  $('vision-status').textContent='已生成只含图片答案的盲测页。点击发送后，要求聊天读出 KEY、中央图形和四格颜色。';
+}
+async function sendVisionChallenge(){
+  if(state.sharing)return notice('图像正在处理，请稍后');
+  const seq=visionSequence;
+  if(!seq){makeNewVisionChallenge();return;}
+  state.sharing=true;$('send-vision').disabled=true;
+  const status=$('vision-status');
+  try {
+    const png=await canvasPngBlob($('vision-canvas'));
+    const result=await relayImageToChat({host:window.openai,blob:png,
+      fileName:'visual-receipt-test.png',prompt:BLIND_PROMPT,
+      modelContent:'这是一张图片像素盲测页。请先确认实际图像是否可见；KEY、形状与四格颜色均没有在文字中提供。',
+      privateContent:{test:'image-receipt'},canProceed:()=>seq===visionSequence,
+      onPhase:phase=>{status.textContent=phase==='uploaded'?'图像已上传到宿主，但模型是否能看见仍未知。':'图像引用已设置；尚未收到模型的视觉回答。';}
+    });
+    if(result.status==='cancelled'){status.textContent='挑战页已更新，旧图像提交已取消。';return;}
+    if(result.status==='followup_requested'){
+      status.textContent='已请求 Chat 回复，等待验证：必须正确读出图片 KEY、中央形状与四格颜色才算成功。';
+      notice('盲测已发起；请检查聊天实际回答，而不是上传回执');
+    }else{
+      downloadBlob(png,'visual-receipt-test.png');
+      try{await navigator.clipboard.writeText(BLIND_PROMPT);status.textContent='宿主无法自动附图，已导出盲测 PNG 并复制问题，请将 PNG 拖进当前聊天。';}
+      catch{status.textContent='宿主无法自动附图，已导出盲测 PNG；请把图片拖进聊天并询问图中 KEY、形状和四格颜色。';}
+    }
+  } catch(error){status.textContent='盲测准备失败：'+(error?.message||'未知错误');}
+  finally{state.sharing=false;$('send-vision').disabled=false;}
+}
+
 async function sendFullChunks() {
   if(state.kind==='demo')return notice('请先打开课件');
   setStatus('正在建立全文分段…'); await ensurePdfText();
@@ -436,6 +469,12 @@ $('save-note').onclick=addNote;
 $('bookmark-current').onclick=bookmark;$('copy-context').onclick=()=>copyPacket().catch(e=>notice(e.message));
 $('send-chat').onclick=()=>sendCurrent().catch(e=>notice('发送失败：'+e.message));
 $('export-image').onclick=()=>exportCurrentImage().catch(e=>notice('图片导出失败：'+e.message));
+$('toggle-vision-test').onclick=()=>{const panel=$('vision-panel');panel.classList.toggle('hidden');if(!panel.classList.contains('hidden')&&!visionSequence)makeNewVisionChallenge();};
+$('close-vision-test').onclick=()=>$('vision-panel').classList.add('hidden');
+$('regenerate-vision').onclick=makeNewVisionChallenge;
+$('download-vision').onclick=async()=>{if(!visionSequence)makeNewVisionChallenge();const png=await canvasPngBlob($('vision-canvas'));downloadBlob(png,'visual-receipt-test.png');$('vision-status').textContent='已下载实际图像 PNG；把图像拖进聊天可测试手动送达。';};
+$('send-vision').onclick=sendVisionChallenge;
+
 $('zoom-in').onclick=()=>setZoom('custom',(state.zoomMode==='fit-page'?1:state.zoomMode==='fit-width'?state.widthZoom:state.zoom)+ZOOM_STEP);
 $('zoom-out').onclick=()=>setZoom('custom',(state.zoomMode==='fit-page'?1:state.zoomMode==='fit-width'?state.widthZoom:state.zoom)-ZOOM_STEP);
 ui.zoomRange.addEventListener('input',()=>setZoom('custom',Number(ui.zoomRange.value)/100,true));
