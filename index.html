@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#241f22" />
+  <meta name="description" content="A privacy-first, glassmorphism PDF and PPTX reading room." />
+  <title>Roseglass Reading Room</title>
+  <link rel="stylesheet" href="./src/styles.css" />
+</head>
+<body>
+  <div class="ambient" aria-hidden="true"><i></i><i></i><i></i></div>
+  <main class="room">
+    <header class="toolbar glass">
+      <div class="brand" aria-label="Roseglass Reading Room">
+        <span class="brand-mark">✳</span>
+        <span class="brand-name">ROSEGLASS <small>/ READING ROOM</small></span>
+      </div>
+      <div class="file-meta">
+        <span id="filename">Sample lecture</span>
+        <span id="file-kind" class="file-badge">DEMO</span>
+      </div>
+      <div class="toolbar-actions">
+        <button id="open-file" class="tool-button prominent" title="打开 PDF 或 PPTX" aria-label="打开课件">＋ <span>打开课件</span></button>
+        <button id="toggle-thumbs" class="tool-button" title="显示或隐藏缩略图" aria-label="切换缩略图">▦</button>
+        <button id="toggle-search" class="tool-button" title="全文搜索" aria-label="全文搜索">⌕</button>
+        <button id="toggle-bookmarks" class="tool-button" title="书签" aria-label="查看书签">♧</button>
+        <button id="fullscreen" class="tool-button" title="全屏阅读" aria-label="全屏阅读">⛶</button>
+      </div>
+      <input type="file" id="file-input" accept=".pdf,.pptx,application/pdf,application/vnd.openxmlformats-officedocument.presentationml.presentation" hidden />
+    </header>
+
+    <section class="search-panel glass hidden" id="search-panel" aria-label="课件搜索">
+      <label for="search-input">查找课件文字</label>
+      <div class="search-line"><input type="search" id="search-input" placeholder="输入关键词，搜索全部页面…" autocomplete="off" /><button id="search-go" class="soft-button">查找</button></div>
+      <div id="search-results" class="search-results muted">PDF 加载后支持全文搜索；PPTX 可查看幻灯片。</div>
+    </section>
+
+    <section class="reading-grid" id="reading-grid">
+      <aside id="thumbs" class="thumbs glass hidden" aria-label="页面缩略图"><div class="panel-heading">PAGES <span id="thumb-count">—</span></div><div id="thumb-list" class="thumb-list"></div></aside>
+      <section class="viewer glass" aria-label="课件阅读区">
+        <div class="slide-viewport" id="slide-viewport">
+          <div class="slide-fit" id="slide-fit">
+            <div id="demo-slide" class="demo-slide">
+              <div class="demo-accent">LECTURE NOTES / 01</div>
+              <h1>Ideas worth<br />looking closer at.</h1>
+              <p>A quiet place to read, explore and think together.</p>
+              <div class="demo-rule"></div>
+              <div class="demo-cards"><div><b>01</b>Observe</div><div><b>02</b>Connect</div><div><b>03</b>Understand</div></div>
+              <span class="demo-foot">OPEN A PDF OR PPTX TO BEGIN</span>
+            </div>
+            <canvas id="page-canvas" class="hidden" aria-label="当前课件页面"></canvas>
+            <div id="selection-pin" class="selection-pin hidden"></div>
+          </div>
+          <div class="drop-hint hidden" id="drop-hint">松开鼠标以打开课件</div>
+        </div>
+        <div class="floating-tools glass" id="floating-tools">
+          <button id="prev" class="icon-button" aria-label="上一页" title="上一页">‹</button>
+          <span class="page-counter" id="page-counter">01 <em>/</em> 01</span>
+          <button id="next" class="icon-button" aria-label="下一页" title="下一页">›</button>
+          <span class="vertical-divider"></span>
+          <button id="zoom-out" class="icon-button" aria-label="缩小">−</button>
+          <span class="zoom-value" id="zoom-label">适配</span>
+          <button id="zoom-in" class="icon-button" aria-label="放大">＋</button>
+          <span class="vertical-divider"></span>
+          <button id="bookmark-current" class="icon-button" aria-label="收藏这一页" title="收藏这一页">☆</button>
+        </div>
+      </section>
+      <aside id="bookmarks" class="bookmarks glass hidden" aria-label="收藏的页面"><div class="panel-heading">BOOKMARKS <button id="close-bookmarks" aria-label="关闭书签">×</button></div><div id="bookmark-list" class="bookmark-list"><p class="muted">还没有书签</p></div></aside>
+    </section>
+
+    <footer class="bottom glass">
+      <div class="context"><span class="status-dot"></span><span id="status">在浏览器中阅读 · 文件不会自动上传</span></div>
+      <div class="bottom-actions">
+        <button id="copy-context" class="bottom-button secondary">复制当前页内容</button>
+        <button id="send-chat" class="bottom-button primary">发送这一页到聊天 <span>↗</span></button>
+      </div>
+    </footer>
+  </main>
+  <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
+  <script type="module" src="./src/app.js"></script>
+</body>
+</html>
