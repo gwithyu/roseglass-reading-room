@@ -1,15 +1,18 @@
 /** Roseglass Reading Room. No backend, telemetry, credentials, or private integrations. */
 import {loadReadingPosition,saveReadingPosition,clearReadingPosition} from './reading-progress.mjs';
+import {loadNotes,saveNotes} from './study-notes.mjs';
+import {buildTextChunks} from './segment-text.mjs';
 const $ = (id) => document.getElementById(id);
 const ui = {
   file: $('file-input'), open: $('open-file'), filename: $('filename'), kind: $('file-kind'),
   canvas: $('page-canvas'), demo: $('demo-slide'), pin: $('selection-pin'), stage: $('slide-fit'), viewport: $('slide-viewport'),
   prev: $('prev'), next: $('next'), counter: $('page-counter'), status: $('status'), zoomLabel: $('zoom-label'), zoomRange: $('zoom-range'), zoomPreset: $('zoom-preset'),
   thumbs: $('thumbs'), thumbList: $('thumb-list'), bookmarks: $('bookmarks'), bookmarkList: $('bookmark-list'),
-  searchPanel: $('search-panel'), search: $('search-input'), searchResults: $('search-results'), toast: $('toast')
+  searchPanel: $('search-panel'), search: $('search-input'), searchResults: $('search-results'), toast: $('toast'),
+  noteText: $('note-text'), noteList: $('note-list'), notesCount: $('notes-count')
 };
 const state = { kind: 'demo', file: null, document: null, pptx: null, page: 0, count: 1, pagesText: [],
-  fileKey: null, bookmarks: new Set(), zoom: 1, zoomMode: 'fit-page', widthZoom: 1, resumed: false, selected: null, renderToken: 0, pdfjs: null,
+  fileKey: null, bookmarks: new Set(), notes: [], zoom: 1, zoomMode: 'fit-page', widthZoom: 1, resumed: false, selected: null, renderToken: 0, pdfjs: null,
   searchIndexPromise: null, sendIndex: 0, sendChunks: [], loading: false, renderTask: null };
 const MAX_SEGMENT = 9000;
 const ZOOM_MIN = 0.5, ZOOM_MAX = 3, ZOOM_STEP = 0.1;
@@ -86,12 +89,38 @@ function drawBookmarks() {
   for (const i of [...state.bookmarks].sort((a,b)=>a-b)) { const b=document.createElement('button'); b.textContent=`第 ${i+1} 页`; b.onclick=()=>go(i); list.append(b); }
   $('bookmark-current').textContent = state.bookmarks.has(state.page) ? '★' : '☆';
 }
+function restoreNotes(){state.notes=loadNotes(safeStorage(),state.fileKey,state.count);ui.noteText.value='';drawNotes();}
+function drawNotes(){
+  ui.noteList.replaceChildren();ui.notesCount.textContent=String(state.notes.length);
+  if(!state.notes.length){const p=document.createElement('p');p.className='muted';p.textContent='还没有保存重点';ui.noteList.append(p);return;}
+  for(const n of state.notes){
+    const row=document.createElement('div');row.className='note-item';
+    const jump=document.createElement('button');jump.className='note-jump';
+    jump.textContent=`第 ${n.page+1} 页${n.x!==null?' · 已标记位置':''}${n.text?' — '+n.text:''}`;
+    jump.title='跳转到这条笔记';jump.onclick=async()=>{await go(n.page);state.selected=n.x===null?null:{page:n.page,x:n.x,y:n.y};if(state.selected)showPin(n.x,n.y);else ui.pin.classList.add('hidden');};
+    const remove=document.createElement('button');remove.className='note-delete';remove.textContent='×';remove.setAttribute('aria-label',`删除第 ${n.page+1} 页的这条笔记`);
+    remove.onclick=()=>{state.notes=state.notes.filter(x=>x.id!==n.id);saveNotes(safeStorage(),state.fileKey,state.count,state.notes);drawNotes();};
+    row.append(jump,remove);ui.noteList.append(row);
+  }
+}
+function addNote(){
+  if(state.kind==='demo')return notice('请先打开课件');
+  const selected=state.selected?.page===state.page?state.selected:null;
+  const content=ui.noteText.value.trim();
+  if(!content&&!selected)return notice('先点击课件标记重点，或者写一段备注');
+  if(state.notes.length>=300)return notice('本课件最多保存 300 条重点');
+  const note={id:globalThis.crypto?.randomUUID?.().replaceAll('-','') || Date.now().toString(36)+Math.random().toString(36).slice(2),page:state.page,x:selected?.x??null,y:selected?.y??null,text:content};
+  state.notes.push(note);
+  if(!saveNotes(safeStorage(),state.fileKey,state.count,state.notes))notice('本地存储不可用，笔记仅在本次阅读中保留');
+  else notice('重点笔记已保存在本地浏览器');
+  ui.noteText.value='';drawNotes();
+}
 function resetPanels() { ui.searchResults.replaceChildren(); ui.searchResults.textContent = '输入关键词查找页面文字'; ui.thumbList.replaceChildren(); state.sendIndex = 0; state.sendChunks = []; }
 function switchDoc(kind, name, count) {
   state.kind = kind; state.page = 0; state.count = count; state.selected = null;
   ui.filename.textContent = filenameShort(name); ui.kind.textContent = kind.toUpperCase();
   ui.demo.classList.add('hidden'); ui.canvas.classList.remove('hidden'); ui.pin.classList.add('hidden');
-  restoreReadingPosition(); resetPanels(); restoreBookmarks(); refreshCounter();
+  restoreReadingPosition(); resetPanels(); restoreBookmarks(); restoreNotes(); refreshCounter();
 }
 function refreshCounter() {
   ui.counter.innerHTML = `${safeNumber(state.page)} <em>/</em> ${safeNumber(state.count-1)}`;
@@ -213,7 +242,7 @@ async function go(page) { if(!Number.isInteger(page)||page<0||page>=state.count|
 ui.canvas.addEventListener('click',(e)=>{
   if(state.kind==='demo')return;
   const r=ui.canvas.getBoundingClientRect(); const x=Math.min(1,Math.max(0,(e.clientX-r.left)/r.width));const y=Math.min(1,Math.max(0,(e.clientY-r.top)/r.height));
-  state.selected={page:state.page,x,y};showPin(x,y);notice('已标记重点 · 发送到聊天时将附上位置');
+  state.selected={page:state.page,x,y};showPin(x,y);notice('已标记重点 · 打开书签面板可保存为笔记');
 });
 function bookmark() {if(state.bookmarks.has(state.page))state.bookmarks.delete(state.page);else state.bookmarks.add(state.page);persistBookmarks();drawBookmarks();notice(state.bookmarks.has(state.page)?'这一页已收藏':'已取消收藏');}
 async function ensurePdfText() {
@@ -264,7 +293,8 @@ async function populateThumbs() {
 }
 function createPacket(text, page=state.page) {
   const loc=state.selected && state.selected.page===page ? `\n点击重点（归一化坐标）：${state.selected.x.toFixed(4)}, ${state.selected.y.toFixed(4)}` : '';
-  return `请与我共读这份课件，只依据实际提供的文字或图像回答，不要推测未收到的图形。\n课件：${state.file?.name||'示例'}\n格式：${state.kind.toUpperCase()}\n第 ${page+1} / ${state.count} 页${loc}\n\n===== 页面文字 =====\n${text||'（当前页没有可提取文字。图像需要另行附上，不能单凭本消息识别。）'}`;
+  const pageNotes=state.notes.filter(n=>n.page===page).map(n=>`- ${n.x===null?'整页':`位置 ${n.x.toFixed(4)}, ${n.y.toFixed(4)}`}：${n.text||'已标记重点'}`).join('\n').slice(0,2500);
+  return `请与我共读这份课件，只依据实际提供的文字或图像回答，不要推测未收到的图形。\n课件：${state.file?.name||'示例'}\n格式：${state.kind.toUpperCase()}\n第 ${page+1} / ${state.count} 页${loc}\n\n===== 页面文字 =====\n${text||'（当前页没有可提取文字。图像需要另行附上，不能单凭本消息识别。）'}${pageNotes?`\n\n===== 我的本页重点笔记 =====\n${pageNotes}`:''}`;
 }
 async function copyPacket() {
   const text=createPacket(await pageText(state.page));try{await navigator.clipboard.writeText(text);notice('当前页文字与点击位置已复制');}catch{fallbackDownload(text,'reading-context.txt');notice('无法复制，已保存文本文件');}
@@ -280,14 +310,7 @@ async function sendFullChunks() {
   if(state.kind==='demo')return notice('请先打开课件');
   setStatus('正在建立全文分段…'); await ensurePdfText();
   if (!state.sendChunks.length) {
-    const chunks=[];let segment='';let firstPage=0;
-    for(let i=0;i<state.count;i++) {
-      const line=`\n\n===== 第 ${i+1} 页 =====\n${state.pagesText[i]||'（无可提取文字）'}`;
-      if(segment.length && segment.length+line.length>MAX_SEGMENT){chunks.push({from:firstPage+1,to:i,text:segment});segment='';firstPage=i;}
-      if(line.length>MAX_SEGMENT){for(let j=0;j<line.length;j+=MAX_SEGMENT)chunks.push({from:i+1,to:i+1,text:line.slice(j,j+MAX_SEGMENT)});firstPage=i+1;}
-      else segment+=line;
-    }
-    if(segment)chunks.push({from:firstPage+1,to:state.count,text:segment});state.sendChunks=chunks;
+    state.sendChunks=buildTextChunks(state.pagesText,MAX_SEGMENT);
   }
   if(state.sendIndex>=state.sendChunks.length){state.sendIndex=0;notice('全文分段已全部发送；再次点击可重发');return;}
   const k=state.sendIndex,part=state.sendChunks[k];
@@ -332,6 +355,7 @@ $('toggle-bookmarks').onclick=()=>setPanel('bookmarks','thumbs');$('close-bookma
 $('toggle-search').onclick=()=>{ui.searchPanel.classList.toggle('hidden');if(!ui.searchPanel.classList.contains('hidden'))ui.search.focus();};
 $('search-go').onclick=search;ui.search.onkeydown=e=>{if(e.key==='Enter')search();};
 $('reset-reading').onclick=()=>resetReadingPosition().catch(e=>notice('重置失败：'+e.message));
+$('save-note').onclick=addNote;
 $('bookmark-current').onclick=bookmark;$('copy-context').onclick=()=>copyPacket().catch(e=>notice(e.message));
 $('send-chat').onclick=()=>sendCurrent().catch(e=>notice('发送失败：'+e.message));
 $('zoom-in').onclick=()=>setZoom('custom',(state.zoomMode==='fit-page'?1:state.zoomMode==='fit-width'?state.widthZoom:state.zoom)+ZOOM_STEP);
@@ -340,7 +364,7 @@ ui.zoomRange.addEventListener('input',()=>setZoom('custom',Number(ui.zoomRange.v
 ui.zoomRange.addEventListener('change',()=>setZoom('custom',Number(ui.zoomRange.value)/100));
 ui.zoomPreset.addEventListener('change',()=>setZoom(ui.zoomPreset.value));
 $('fullscreen').onclick=async()=>{if(window.openai?.requestDisplayMode){try{await window.openai.requestDisplayMode({mode:'fullscreen'});return;}catch{}}if(!document.fullscreenElement)await document.documentElement.requestFullscreen?.();else await document.exitFullscreen?.();};
-document.addEventListener('keydown',e=>{if(/INPUT|TEXTAREA/.test(document.activeElement?.tagName||''))return;if(e.key==='ArrowRight'||e.key==='PageDown')go(state.page+1);if(e.key==='ArrowLeft'||e.key==='PageUp')go(state.page-1);if((e.metaKey||e.ctrlKey)&&e.key==='f'){e.preventDefault();ui.searchPanel.classList.remove('hidden');ui.search.focus();}});
+document.addEventListener('keydown',e=>{if(/INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName||'') || document.activeElement?.isContentEditable)return;if(e.key==='ArrowRight'||e.key==='PageDown')go(state.page+1);if(e.key==='ArrowLeft'||e.key==='PageUp')go(state.page-1);if((e.metaKey||e.ctrlKey)&&e.key==='f'){e.preventDefault();ui.searchPanel.classList.remove('hidden');ui.search.focus();}});
 restoreZoom();updateZoomUI();renderDemo();
 let resizeTimer;new ResizeObserver(()=>{clearTimeout(resizeTimer);resizeTimer=setTimeout(()=>render(),110);}).observe(ui.viewport);
 let dragDepth=0;window.addEventListener('dragenter',e=>{if(!e.dataTransfer?.types?.includes('Files'))return;e.preventDefault();dragDepth++;$('drop-hint').classList.remove('hidden');});window.addEventListener('dragover',e=>{if(e.dataTransfer?.types?.includes('Files'))e.preventDefault();});window.addEventListener('dragleave',()=>{dragDepth--;if(dragDepth<=0){dragDepth=0;$('drop-hint').classList.add('hidden');}});window.addEventListener('drop',e=>{e.preventDefault();dragDepth=0;$('drop-hint').classList.add('hidden');loadFile(e.dataTransfer?.files?.[0]);});
