@@ -11,7 +11,7 @@ This is a **new, clean-room public starter implementation**, not an export or de
 - **PDF:** open locally with Mozilla PDF.js, page navigation, text extraction, multi-page search, lazy thumbnails, ordered, length-bounded, lossless full-text segmented transfer (including extra-long pages).
 - **PPTX:** open locally with MIT-licensed `pptx-browser` canvas renderer, page navigation, approximate text extraction from OOXML, and segmented transfer. Legacy `.ppt` isn't supported.
 - **Study workflow:** resume each document at its own last page and zoom (even after reopening the browser); reset only that document’s reading position from Bookmarks; click to mark a normalized point and **save a per-slide annotation** in Bookmarks & Notes; jump back to the saved position, add a short question or note, or delete it; page context export; local bookmarks by truncated SHA-256 fingerprint; drag-and-drop; no private credentials.
-- **ChatGPT:** when embedded as a permitted ChatGPT App UI and `window.openai.sendFollowUpMessage` exists, send textual page context to the ongoing conversation. Otherwise copy/export for manual paste. No claim is made that this standalone site automatically attaches page images or reopens an existing private ChatGPT chat.
+- **ChatGPT:** in a supported in-chat App, attempt a page-image-plus-text handoff using the available host APIs; the model must still verify it can actually see the image. In standalone mode (including Free users without plugin extensions), **copy page text and download a marked PNG** to manually send to the reader's own ChatGPT. No automatic login, API key, payment, or shared AI conversation is required.
 - **No backend:** all document parsing remains in the browser. On first file open, browser downloads the public libraries from the CDN; on-page PDF/PPTX contents are not uploaded by this app.
 
 ## Run
@@ -23,11 +23,21 @@ python3 -m http.server 8080
 
 Or serve this folder with any static file server, including GitHub Pages. Do not use `file://` as module and browser security policies differ across browsers.
 
+## Use with your own ChatGPT (including Free)
+
+The **standalone website** has no paid account prerequisite. Open a PDF or PPTX locally, click the page to mark an important spot, then choose **复制图文给我的 GPT**. Roseglass will copy the current page's extracted text, page number, click coordinates, and relevant local notes, and download a PNG of the actual page **with the clicked position marked**. Click **打开我的 ChatGPT** and, in **your own ChatGPT account**, paste the copied text and attach the PNG before sending. There is no invisible file transfer between a normal browser page and the ChatGPT tab. Your PDF/PPTX remains in the browser unless you choose to send the text/image yourself.
+
+For long lectures, **全文分段** copies one ordered text segment at a time. Paste each part into the same ChatGPT conversation before requesting the next; copied does not mean delivered. On mobile browsers that block copying, the reader downloads a text file as a fallback.
+
+ChatGPT Free supports files and images subject to its own usage and upload limits (which OpenAI can change). If the daily upload limit is reached, text-based slides can still be discussed using the copied text; slides with diagrams require that the image actually reach ChatGPT. The standalone website does not make unlimited ChatGPT access available.
+
+**Account separation:** this public project has no g-mind endpoint, shared API token, ChatGPT credential, private session, or persistent server store. Each reader uses their own account. Local reading positions and notes remain on each user's device/browser; they are not synchronized between friends.
+
 ## ChatGPT integration
 
-The stand-alone UI detects `window.openai?.sendFollowUpMessage({prompt})` (ChatGPT-specific extension). To make a *real ChatGPT App*, supply your own MCP server and UI resource registration according to the current [OpenAI Apps SDK documentation](https://developers.openai.com/plugins/build/chatgpt-ui). This repository intentionally does **not** carry a connection to any private application or memory infrastructure. If the extension is unavailable, buttons copy or download text only.
+The standalone UI detects optional ChatGPT host APIs for in-chat use. To make a *real ChatGPT App*, supply your own MCP server and UI resource registration according to the current [OpenAI Apps SDK documentation](https://developers.openai.com/plugins/build/chatgpt-ui). This repository intentionally does **not** connect to any private application or memory infrastructure. If the extension is unavailable, the interface falls back to user-controlled **copy text + download marked PNG + open own ChatGPT**. This fallback works without the ChatGPT plugin extension.
 
-**Important limitation:** `sendFollowUpMessage` accepts **text**; it doesn't magically attach the rendered slide as an image. A slide containing only graphics must be exported separately or uploaded by the user to make the visual content available to the model. Long presentations are segmented at ~9k characters each, delivered on repeated button presses. PDF text extraction depends on an embedded text layer; scanned pages require OCR beyond this starter's scope.
+**Important limitation:** text-only follow-up messages do not themselves attach rendered page images. The in-chat path may attempt a file upload + widget-state reference only when the host exposes all required APIs, and still requires visual readback verification. Otherwise the page PNG is downloaded for manual upload. Long lectures are segmented at ~9k characters and copied/sent one at a time. PDF text extraction depends on an embedded text layer; scanned pages require visual upload and interpretation, not assumed OCR.
 
 ## Reading size
 
