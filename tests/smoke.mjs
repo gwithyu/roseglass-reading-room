@@ -10,6 +10,8 @@ for(const id of ['zoom-range','zoom-label','zoom-preset','zoom-in','zoom-out']) 
 assert.match(html,/value="fit-width"/);
 assert.match(html,/value="custom"/);
 assert.match(html,/id="reset-reading"/);
+for(const id of ['note-text','note-list','save-note','notes-count'])assert.ok(html.includes(`id="${id}"`),`missing ${id}`);
+assert.match(js,/loadNotes/);assert.match(js,/saveNotes/);assert.match(js,/buildTextChunks/);
 assert.match(html,/\.pdf,\.pptx/);
 assert.match(css,/backdrop-filter:\s*blur\(/);
 assert.match(css,/\.slide-viewport\{[^}]*height:100%/);
@@ -29,4 +31,4 @@ function visit(dir){for(const entry of readdirSync(dir,{withFileTypes:true})){co
 visit(new URL('../',import.meta.url).pathname);
 const text=all.filter(p=>!p.endsWith('.png') && !p.endsWith('smoke.mjs')).map(p=>readFileSync(p,'utf8')).join('\n');
 for(const secret of ['-----BEGIN PRIVATE KEY-----','api_key=','github_pat_','authorization: bearer ','client_secret='])assert.ok(!text.toLowerCase().includes(secret.toLowerCase()),`private string detected: ${secret}`);
-console.log('PASS: zoom presets, per-document resume, reset control, PDF/PPTX sources, follow-up, privacy keyword scan');
+console.log('PASS: zoom, reading progress, per-document notes, lossless chunks, PDF/PPTX, follow-up, privacy scan');
