@@ -37,3 +37,5 @@
   .zoom-range{width:clamp(55px,17vw,110px)}
   .zoom-preset{max-width:92px}
 }
+
+.reset-reading{font-size:11px!important;text-align:center!important;background:rgba(255,245,241,.12)!important;border-color:rgba(255,245,241,.22)!important}
