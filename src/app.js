@@ -4,6 +4,7 @@ import {loadNotes,saveNotes} from './study-notes.mjs';
 import {buildTextChunks} from './segment-text.mjs';
 import {makePageImage,canvasPngBlob,samePageSnapshot,buildVisualPrompt,exportSize} from './visual-packet.mjs';
 import {relayImageToChat} from './chat-image-bridge.mjs';
+import {createLiveSync} from './live-sync.mjs';
 import {makeChallenge,paintChallenge,BLIND_PROMPT} from './vision-challenge.mjs';
 const $ = (id) => document.getElementById(id);
 const ui = {
@@ -17,6 +18,7 @@ const ui = {
 const state = { kind: 'demo', file: null, document: null, pptx: null, page: 0, count: 1, pagesText: [],
   fileKey: null, bookmarks: new Set(), notes: [], zoom: 1, zoomMode: 'fit-page', widthZoom: 1, resumed: false, selected: null, renderToken: 0, pdfjs: null,
   searchIndexPromise: null, sendIndex: 0, sendChunks: [], loading: false, renderTask: null, canvasPage: null, sharing: false };
+const liveSync=createLiveSync();
 const MAX_SEGMENT = 9000;
 const ZOOM_MIN = 0.5, ZOOM_MAX = 3, ZOOM_STEP = 0.1;
 const ZOOM_STORAGE = 'roseglass:v1:zoom';
@@ -148,6 +150,7 @@ async function pdfLib() {
 }
 async function loadFile(file) {
   if (!file) return;
+  if(liveSync.active){notice('请先结束实时共读会话，再更换课件');return;}
   const name = file.name; const ext = name.split('.').pop().toLowerCase();
   if (!['pdf','pptx'].includes(ext)) { notice('目前支持 PDF 和 PPTX；旧版 .ppt 请先另存为 .pptx'); return; }
   if (state.loading) { notice('请等待当前课件加载完成'); return; }
@@ -247,8 +250,52 @@ async function go(page) { if(!Number.isInteger(page)||page<0||page>=state.count|
 ui.canvas.addEventListener('click',(e)=>{
   if(state.kind==='demo')return;
   const r=ui.canvas.getBoundingClientRect(); const x=Math.min(1,Math.max(0,(e.clientX-r.left)/r.width));const y=Math.min(1,Math.max(0,(e.clientY-r.top)/r.height));
-  state.selected={page:state.page,x,y};showPin(x,y);notice('已标记重点 · 打开书签面板可保存为笔记');
+  state.selected={page:state.page,x,y};showPin(x,y);
+  notice(liveSync.active?'已标记，正在同步给当前临时会话…':'已标记重点 · 打开书签面板可保存为笔记');
+  if(liveSync.active)publishLivePoint({x,y}).catch(err=>liveStatus('同步失败：'+err.message));
 });
+function liveStatus(text){$('live-status').textContent=text;}
+function liveControls(){
+  const active=liveSync.active;
+  $('live-start').classList.toggle('hidden',active);
+  $('live-copy').classList.toggle('hidden',!active);
+  $('live-stop').classList.toggle('hidden',!active);
+  $('live-endpoint').disabled=active;
+}
+async function liveImage(page,fileKey,point){
+  if(!state.canvasPage||state.canvasPage.page!==page||state.canvasPage.fileKey!==fileKey)return null;
+  const source=ui.canvas;
+  if(!source.width||!source.height)return null;
+  const factor=Math.min(1,900/Math.max(source.width,source.height));
+  const target=document.createElement('canvas');
+  target.width=Math.max(1,Math.round(source.width*factor));
+  target.height=Math.max(1,Math.round(source.height*factor));
+  const ctx=target.getContext('2d');if(!ctx)return null;
+  ctx.drawImage(source,0,0,target.width,target.height);
+  const px=point.x*target.width,py=point.y*target.height;
+  const rad=9;ctx.beginPath();ctx.arc(px,py,rad*1.5,0,Math.PI*2);
+  ctx.fillStyle='rgba(144,53,77,.25)';ctx.fill();
+  ctx.beginPath();ctx.arc(px,py,rad,0,Math.PI*2);
+  ctx.strokeStyle='#fff';ctx.lineWidth=4;ctx.stroke();
+  ctx.beginPath();ctx.arc(px,py,rad,0,Math.PI*2);
+  ctx.strokeStyle='#8f294c';ctx.lineWidth=2;ctx.stroke();
+  const png=target.toDataURL('image/png').split(',')[1];
+  return png?.length<=480000?png:null;
+}
+async function publishLivePoint(point){
+  const roomId=liveSync.roomId,fileKey=state.fileKey,page=state.page;
+  const text=(await pageText(page)).slice(0,8500);
+  if(!liveSync.active||roomId!==liveSync.roomId||fileKey!==state.fileKey||page!==state.page)return;
+  const imageBase64=await liveImage(page,fileKey,point);
+  if(!liveSync.active||roomId!==liveSync.roomId||fileKey!==state.fileKey||page!==state.page)return;
+  const note=state.notes.filter(n=>n.page===page).map(n=>n.text).filter(Boolean).join('; ').slice(0,500);
+  const result=await liveSync.publish({
+    page:page+1,pageCount:state.count,point,text,note,
+    ...(imageBase64?{imageBase64,mimeType:'image/png'}:{})
+  });
+  if(roomId===liveSync.roomId)liveStatus(result.stale?'较早点击已忽略，保留最新重点':
+    `已同步第 ${page+1} 页重点 · v${result.version} · ${imageBase64?'含真实页面图像':'图像过大或不可用：仅文字与坐标'}`);
+}
 function bookmark() {if(state.bookmarks.has(state.page))state.bookmarks.delete(state.page);else state.bookmarks.add(state.page);persistBookmarks();drawBookmarks();notice(state.bookmarks.has(state.page)?'这一页已收藏':'已取消收藏');}
 async function ensurePdfText() {
   if (state.kind!=='pdf')return;
@@ -463,6 +510,28 @@ $('prev').onclick=()=>go(state.page-1);$('next').onclick=()=>go(state.page+1);
 $('toggle-thumbs').onclick=async()=>{setPanel('thumbs','bookmarks');if(!ui.thumbs.classList.contains('hidden'))await populateThumbs();};
 $('toggle-bookmarks').onclick=()=>setPanel('bookmarks','thumbs');$('close-bookmarks').onclick=()=>ui.bookmarks.classList.add('hidden');
 $('toggle-search').onclick=()=>{ui.searchPanel.classList.toggle('hidden');if(!ui.searchPanel.classList.contains('hidden'))ui.search.focus();};
+$('toggle-live').onclick=()=>{$('live-panel').classList.toggle('hidden');};
+$('live-hide').onclick=()=>$('live-panel').classList.add('hidden');
+$('live-start').onclick=async()=>{
+  if(state.kind==='demo')return liveStatus('请先打开 PDF 或 PPTX');
+  $('live-start').disabled=true;
+  try{
+    const pairing=await liveSync.start($('live-endpoint').value.trim());
+    liveControls();
+    liveStatus(`会话已建立，30 分钟后失效；复制配对信息给自己的 GPT 一次。只在点击课件时同步。`);
+  }catch(err){liveStatus('无法建立会话：'+err.message);}
+  finally{$('live-start').disabled=false;}
+};
+$('live-copy').onclick=async()=>{
+  try{await navigator.clipboard.writeText(liveSync.pairingText());liveStatus('配对信息已复制；在你自己的 GPT 中粘贴一次。不要发给其他人。');}
+  catch(err){liveStatus('浏览器无法复制，请检查剪贴板权限：'+err.message);}
+};
+$('live-stop').onclick=async()=>{
+  $('live-stop').disabled=true;
+  try{await liveSync.stop();liveStatus('会话已从中继撤销，读取凭据失效。');liveControls();}
+  catch(err){liveStatus('撤销未被服务器确认！请重试。最迟 30 分钟到期：'+err.message);}
+  finally{$('live-stop').disabled=false;}
+};
 $('search-go').onclick=search;ui.search.onkeydown=e=>{if(e.key==='Enter')search();};
 $('reset-reading').onclick=()=>resetReadingPosition().catch(e=>notice('重置失败：'+e.message));
 $('save-note').onclick=addNote;
