@@ -52,3 +52,8 @@
 .bookmarks .note-delete{background:transparent;border:0;font-size:19px;padding:4px 7px;color:#f1d4cd}
 .bookmark-list{max-height:22%;flex:none}
 .bookmarks:has(.note-list){gap:9px}
+/* Free-plan standalone handoff: keep the slide large and make actions horizontally scrollable. */
+.bottom-actions{max-width:76%;overflow-x:auto;scrollbar-width:thin;align-items:center;padding:2px 1px}
+.bottom-actions .bottom-button{white-space:nowrap;flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;text-decoration:none}
+.bottom-actions a.bottom-button:hover{background:rgba(255,255,255,.15)}
+@media(max-width:900px){.bottom-actions{max-width:100%;width:100%}.bottom-actions .bottom-button{flex:0 0 auto}}
