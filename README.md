@@ -23,6 +23,12 @@ python3 -m http.server 8080
 
 Or serve this folder with any static file server, including GitHub Pages. Do not use `file://` as module and browser security policies differ across browsers.
 
+## Experimental live co-reading relay (separate, optional)
+
+An opt-in, independently deployable, **short-lived** relay and read-only MCP tool prototype is under `relay/`. When deployed by someone the reader trusts, the reader can pair **their own GPT conversation once** and then click slide positions without repeatedly copying each page. The current selection includes page text, coordinates and an optional real PNG image. The user still needs to ask their GPT to explain the latest point; clicking does not silently send a ChatGPT message.
+
+**This relay is NOT deployed, not included in the offline-only default, and not verified on Free accounts.** Free/Go web plugin-extension UI remains a separate availability gate; ordinary plugin tool availability is account-dependent. No private g-mind connection, credentials, or memory system is included. See [relay/README.md](relay/README.md) before setting up, especially the explicit consent, data retention and abuse-control requirements.
+
 ## ChatGPT integration
 
 The stand-alone UI detects `window.openai?.sendFollowUpMessage({prompt})` (ChatGPT-specific extension). To make a *real ChatGPT App*, supply your own MCP server and UI resource registration according to the current [OpenAI Apps SDK documentation](https://developers.openai.com/plugins/build/chatgpt-ui). This repository intentionally does **not** carry a connection to any private application or memory infrastructure. If the extension is unavailable, buttons copy or download text only.

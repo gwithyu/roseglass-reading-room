@@ -24,6 +24,7 @@
         <button id="open-file" class="tool-button prominent" title="打开 PDF 或 PPTX" aria-label="打开课件">＋ <span>打开课件</span></button>
         <button id="toggle-thumbs" class="tool-button" title="显示或隐藏缩略图" aria-label="切换缩略图">▦</button>
         <button id="toggle-search" class="tool-button" title="全文搜索" aria-label="全文搜索">⌕</button>
+        <button id="toggle-live" class="tool-button" title="实验性：与自己的 GPT 实时同步重点" aria-label="开启实时共读面板"><span aria-hidden="true">↗</span></button>
         <button id="toggle-bookmarks" class="tool-button" title="书签和重点笔记" aria-label="查看书签和重点笔记">♧</button>
         <button id="toggle-vision-test" class="tool-button" title="图像盲测：确认聊天能否真正识图" aria-label="图像链路盲测">◈</button>
         <button id="fullscreen" class="tool-button" title="全屏阅读" aria-label="全屏阅读">⛶</button>
@@ -47,6 +48,19 @@
         <button id="send-vision" class="soft-button vision-primary">发往当前 Chat 验收 ↗</button>
       </div>
       <p class="vision-disclaimer">上传成功 ≠ 模型看见像素。必须由聊天回答图上的 KEY、形状和四格颜色才能验收通过。</p>
+    </section>
+
+    <section id="live-panel" class="live-panel glass hidden" aria-label="实验性实时共读设置">
+      <div class="live-heading">LIVE CO-READING · EXPERIMENT <button id="live-hide" aria-label="关闭设置面板">×</button></div>
+      <p>开启后，仅你主动点击的当前页文字、标记位置及小幅截图才会传给你信任的共读中继。会话有效期 30 分钟；不连接任何私人 g-mind。</p>
+      <label for="live-endpoint">共读服务 HTTPS 地址（需要先自行部署公共中继）</label>
+      <input id="live-endpoint" type="url" placeholder="https://your-roseglass-relay.workers.dev" autocomplete="off" spellcheck="false" />
+      <div class="live-actions">
+        <button id="live-start" class="soft-button">开启临时共读</button>
+        <button id="live-copy" class="soft-button hidden">复制一次性 GPT 配对信息</button>
+        <button id="live-stop" class="soft-button hidden">结束并撤销</button>
+      </div>
+      <p id="live-status" role="status">尚未连接。普通阅读不上传课件。免费 ChatGPT 是否能安装读取工具，取决于账号可用功能。</p>
     </section>
 
     <section class="reading-grid" id="reading-grid">
