@@ -365,7 +365,24 @@ async function manualVisualFallback(blob,pageContext,page){
   catch{fallbackDownload(buildVisualPrompt(pageContext,false),'reading-context.txt');notice('图文已下载：在自己的 ChatGPT 上传 PNG 与文字文件');}
 }
 async function sendCurrent(){
-  if(state.sharing)return notice('正在准备当前页图像，请稍候');
+  if(state.sharing)return notice('正在准备当前页，请稍候');
+  if(state.kind==='demo')return notice('请先打开自己的 PDF 或 PPTX');
+  // A Free reader can study text pages repeatedly without consuming image upload quotas.
+  // Visual pages remain available via the explicit "导出带标记 PNG" control.
+  const host=window.openai;
+  const canAttachImage=typeof host?.uploadFile==='function' &&
+    typeof host?.setWidgetState==='function' && typeof host?.sendFollowUpMessage==='function';
+  if(!canAttachImage){
+    const page=state.page, fileKey=state.fileKey;
+    const extracted=await pageText(page);
+    if(state.fileKey!==fileKey||state.page!==page)throw new Error('页面已切换，请重新操作');
+    const result=await sendPacket(createPacket(extracted,page));
+    setStatus(result==='sent'?'文字已发送；图表需要另行上传 PNG':
+      result==='copied'?'免费阅读 · 文字已复制，粘贴到你自己的 ChatGPT；图表可选导出 PNG':
+      '免费阅读 · 文字已导出文件；图表可选导出 PNG');
+    if(!extracted.trim())notice('这一页无文字层：请使用「导出带标记 PNG」，上传到自己的 ChatGPT');
+    return;
+  }
   state.sharing=true;$('send-chat').disabled=true;
   try{
     setStatus('正在准备当前页真实图像和点击位置…');
@@ -459,8 +476,8 @@ $('fullscreen').onclick=async()=>{if(window.openai?.requestDisplayMode){try{awai
 document.addEventListener('keydown',e=>{if(/INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName||'') || document.activeElement?.isContentEditable)return;if(e.key==='ArrowRight'||e.key==='PageDown')go(state.page+1);if(e.key==='ArrowLeft'||e.key==='PageUp')go(state.page-1);if((e.metaKey||e.ctrlKey)&&e.key==='f'){e.preventDefault();ui.searchPanel.classList.remove('hidden');ui.search.focus();}});
 const standalone=handoffMode(window.openai)==='copy';
 $('open-own-chatgpt').classList.toggle('hidden',!standalone);
-$('send-chat').firstChild.textContent=standalone?'复制图文给我的 GPT ':'图文共读 ';
-$('send-chat').title=standalone?'下载带标记 PNG、复制页文字；用自己的 ChatGPT 粘贴并上传':'尝试在当前 ChatGPT 发送真实图文';
+$('send-chat').firstChild.textContent=standalone?'复制本页给我的 GPT ':'图文共读 ';
+$('send-chat').title=standalone?'复制本页文字和点击位置；图表需另点导出 PNG 上传给自己的 ChatGPT':'尝试在当前 ChatGPT 发送真实图文';
 restoreZoom();updateZoomUI();renderDemo();
 let resizeTimer;new ResizeObserver(()=>{clearTimeout(resizeTimer);resizeTimer=setTimeout(()=>render(),110);}).observe(ui.viewport);
 let dragDepth=0;window.addEventListener('dragenter',e=>{if(!e.dataTransfer?.types?.includes('Files'))return;e.preventDefault();dragDepth++;$('drop-hint').classList.remove('hidden');});window.addEventListener('dragover',e=>{if(e.dataTransfer?.types?.includes('Files'))e.preventDefault();});window.addEventListener('dragleave',()=>{dragDepth--;if(dragDepth<=0){dragDepth=0;$('drop-hint').classList.add('hidden');}});window.addEventListener('drop',e=>{e.preventDefault();dragDepth=0;$('drop-hint').classList.add('hidden');loadFile(e.dataTransfer?.files?.[0]);});
