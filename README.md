@@ -8,9 +8,9 @@ This is a **new, clean-room public starter implementation**, not an export or de
 
 - **Slides first:** document fills the flexible reading pane; thumbnails are hidden by default; the toolbar stays compact. Desktop/mobile, full screen, **a 50–300% zoom slider** (relative to fit-page size), **Fit page / Fit width / Custom** presets, scrollable enlarged slides, and per-document remembered zoom and last page.
 - **Actual high-transparency glass:** translucent rose/charcoal surfaces with `backdrop-filter: blur()` and optional supporting gradients; no opaque pink wall.
-- **PDF:** open locally with Mozilla PDF.js, page navigation, text extraction, multi-page search, lazy thumbnails, full-text segmented transfer.
+- **PDF:** open locally with Mozilla PDF.js, page navigation, text extraction, multi-page search, lazy thumbnails, ordered, length-bounded, lossless full-text segmented transfer (including extra-long pages).
 - **PPTX:** open locally with MIT-licensed `pptx-browser` canvas renderer, page navigation, approximate text extraction from OOXML, and segmented transfer. Legacy `.ppt` isn't supported.
-- **Study workflow:** resume each document at its own last page and zoom (even after reopening the browser); reset only that document’s reading position from Bookmarks; click to mark a normalized point; page context export; local bookmarks by truncated SHA-256 fingerprint; drag-and-drop; no private credentials.
+- **Study workflow:** resume each document at its own last page and zoom (even after reopening the browser); reset only that document’s reading position from Bookmarks; click to mark a normalized point and **save a per-slide annotation** in Bookmarks & Notes; jump back to the saved position, add a short question or note, or delete it; page context export; local bookmarks by truncated SHA-256 fingerprint; drag-and-drop; no private credentials.
 - **ChatGPT:** when embedded as a permitted ChatGPT App UI and `window.openai.sendFollowUpMessage` exists, send textual page context to the ongoing conversation. Otherwise copy/export for manual paste. No claim is made that this standalone site automatically attaches page images or reopens an existing private ChatGPT chat.
 - **No backend:** all document parsing remains in the browser. On first file open, browser downloads the public libraries from the CDN; on-page PDF/PPTX contents are not uploaded by this app.
 
@@ -45,6 +45,7 @@ For CSP-restricted or offline deployments, vendor *matching version* JS modules 
 ## Security / privacy notes
 
 - There is no server upload or analytics. Per-file reading position saves `{page, zoomMode, zoom}` and can be reset without touching bookmarks. Browser bookmark state persists locally under `roseglass:v1:bookmarks:*`, keyed by document SHA-256 digest prefix, **never by a file name or extracted text**.
+- Annotation records save the page, optional normalized x/y click location and up to 480 characters of user-written notes in local browser storage, never the document itself. Sending the current page also includes its saved notes; nothing is automatically transmitted.
 - Sending to ChatGPT or copying context is explicitly user initiated. The text of the selected page (or consecutive chunks) is sent only after clicking a send control.
 - Search results are inserted using `textContent`, not untrusted HTML. Selected files are not sent to the CDN, but scripts fetched from a CDN execute in the page; privacy-sensitive hosts should self-host audited libraries.
 - For very large/complex documents browsers may run out of memory. There is a 250 MB input cap and a 6 MB per-slide XML extraction cap.
@@ -60,3 +61,9 @@ For CSP-restricted or offline deployments, vendor *matching version* JS modules 
 ## License
 
 This starter's original application source is released under MIT (see `LICENSE`). Third-party libraries have their own licenses, and are loaded separately.
+
+## Study notes and huge lectures
+
+Open **BOOKMARKS & NOTES** in the top toolbar (closed by default, so the slide remains largest). Optionally click the slide to mark a point, type a note in the sidebar and click **保存本页重点**. Tap a saved note to jump back and show the same pin. Notes are separated by the document SHA-256 fingerprint, persist in this browser, and survive **重置本课件的阅读位置**. They can be deleted independently. Local storage may not persist in incognito or restricted embedded browsers.
+
+**全文分段** now preserves page order across arbitrarily long text pages and splits large pages into consecutive pieces, with a 9,000-character maximum *payload* per piece. The chat prefix adds a small amount beyond that limit. Repeated clicking delivers the next piece; a failed send does not advance. This feature is an export aid, not long-term remote storage.
