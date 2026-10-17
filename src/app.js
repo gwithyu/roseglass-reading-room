@@ -1,4 +1,5 @@
 /** Roseglass Reading Room. No backend, telemetry, credentials, or private integrations. */
+import {loadReadingPosition,saveReadingPosition,clearReadingPosition} from './reading-progress.mjs';
 const $ = (id) => document.getElementById(id);
 const ui = {
   file: $('file-input'), open: $('open-file'), filename: $('filename'), kind: $('file-kind'),
@@ -8,7 +9,7 @@ const ui = {
   searchPanel: $('search-panel'), search: $('search-input'), searchResults: $('search-results'), toast: $('toast')
 };
 const state = { kind: 'demo', file: null, document: null, pptx: null, page: 0, count: 1, pagesText: [],
-  fileKey: 'demo', bookmarks: new Set(), zoom: 1, zoomMode: 'fit-page', widthZoom: 1, selected: null, renderToken: 0, pdfjs: null,
+  fileKey: null, bookmarks: new Set(), zoom: 1, zoomMode: 'fit-page', widthZoom: 1, resumed: false, selected: null, renderToken: 0, pdfjs: null,
   searchIndexPromise: null, sendIndex: 0, sendChunks: [], loading: false, renderTask: null };
 const MAX_SEGMENT = 9000;
 const ZOOM_MIN = 0.5, ZOOM_MAX = 3, ZOOM_STEP = 0.1;
@@ -44,7 +45,8 @@ let zoomTimer;
 function setZoom(mode, zoom=state.zoom, live=false) {
   state.zoomMode=mode;
   state.zoom=zoomMath.clamp(Math.round(zoom*10)/10);
-  updateZoomUI();persistZoom();
+  updateZoomUI();
+  if(state.kind==='demo')persistZoom();else persistReadingPosition();
   clearTimeout(zoomTimer);
   if(live) zoomTimer=setTimeout(()=>render().catch(e=>notice('缩放失败：'+e.message)),90);
   else render().catch(e=>notice('缩放失败：'+e.message));
@@ -56,9 +58,28 @@ function setStatus(s) { ui.status.textContent = s; }
 function safeNumber(n) { return String(n + 1).padStart(2, '0'); }
 function filenameShort(f) { return f.length > 60 ? f.slice(0, 57) + '…' : f; }
 function setPanel(id, other) { const p = $(id); p.classList.toggle('hidden'); if (other && !p.classList.contains('hidden')) $(other).classList.add('hidden'); }
-const storeKey = () => `roseglass:v1:bookmarks:${state.fileKey}`;
-function persistBookmarks() { try { localStorage.setItem(storeKey(), JSON.stringify([...state.bookmarks])); } catch {} }
-function restoreBookmarks() { try { state.bookmarks = new Set(JSON.parse(localStorage.getItem(storeKey()) || '[]').filter(n => Number.isInteger(n) && n >= 0 && n < state.count)); } catch { state.bookmarks = new Set(); } drawBookmarks(); }
+function safeStorage() { try { return window.localStorage; } catch { return null; } }
+function persistReadingPosition() {
+  if(state.kind==='demo')return;
+  saveReadingPosition(safeStorage(),state.fileKey,state.count,{
+    page:state.page,zoomMode:state.zoomMode,zoom:state.zoom
+  });
+}
+function restoreReadingPosition() {
+  // A previously opened DIFFERENT document must never supply a new document's defaults.
+  state.page=0;state.zoomMode='fit-page';state.zoom=1;state.widthZoom=1;state.resumed=false;
+  const saved=loadReadingPosition(safeStorage(),state.fileKey,state.count);
+  if(saved){state.page=saved.page;state.zoomMode=saved.zoomMode;state.zoom=saved.zoom;state.resumed=true;}
+}
+const storeKey = () => state.fileKey ? `roseglass:v1:bookmarks:${state.fileKey}` : null;
+function persistBookmarks() { const key=storeKey();if(!key)return;try { localStorage.setItem(key, JSON.stringify([...state.bookmarks])); } catch {} }
+function restoreBookmarks() {const key=storeKey(); try { state.bookmarks = new Set(JSON.parse((key&&localStorage.getItem(key)) || '[]').filter(n => Number.isInteger(n) && n >= 0 && n < state.count)); } catch { state.bookmarks = new Set(); } drawBookmarks(); }
+async function resetReadingPosition(){
+  if(state.kind==='demo')return;
+  clearReadingPosition(safeStorage(),state.fileKey);
+  state.page=0;state.zoomMode='fit-page';state.zoom=1;state.selected=null;state.resumed=false;
+  await render();notice('已重置本课件的阅读位置与比例');
+}
 function drawBookmarks() {
   const list = ui.bookmarkList; list.replaceChildren();
   if (!state.bookmarks.size) { const p = document.createElement('p'); p.className = 'muted'; p.textContent = '还没有书签'; list.append(p); }
@@ -70,7 +91,7 @@ function switchDoc(kind, name, count) {
   state.kind = kind; state.page = 0; state.count = count; state.selected = null;
   ui.filename.textContent = filenameShort(name); ui.kind.textContent = kind.toUpperCase();
   ui.demo.classList.add('hidden'); ui.canvas.classList.remove('hidden'); ui.pin.classList.add('hidden');
-  resetPanels(); restoreBookmarks(); refreshCounter();
+  restoreReadingPosition(); resetPanels(); restoreBookmarks(); refreshCounter();
 }
 function refreshCounter() {
   ui.counter.innerHTML = `${safeNumber(state.page)} <em>/</em> ${safeNumber(state.count-1)}`;
@@ -81,8 +102,8 @@ function refreshCounter() {
   drawBookmarks();
 }
 async function idForFile(buffer) {
-  if (!crypto?.subtle) return `local-${buffer.byteLength}`;
-  const hash = await crypto.subtle.digest('SHA-256',buffer);
+  if (!globalThis.crypto?.subtle) return null; // No insecure size-only fingerprint collision.
+  const hash = await globalThis.crypto.subtle.digest('SHA-256',buffer);
   return [...new Uint8Array(hash)].map(n => n.toString(16).padStart(2,'0')).join('').slice(0,24);
 }
 async function pdfLib() {
@@ -103,23 +124,32 @@ async function loadFile(file) {
     const buffer = await file.arrayBuffer();
     if (buffer.byteLength > 250 * 1024 * 1024) throw new Error('文件超过 250 MB 浏览器预览限制');
     const fileKey = await idForFile(buffer);
-    state.pptx?.destroy?.(); state.pptx = null;
-    if (state.document) { try { await state.document.destroy(); } catch {} state.document=null; }
-    state.file = file; state.fileKey = fileKey; state.pagesText = [];
+    let nextPdf = null, nextPptx = null, nextText = [], nextCount = 0;
     if (ext==='pdf') {
       const pdfjs = await pdfLib();
-      const doc = await pdfjs.getDocument({data:new Uint8Array(buffer.slice(0))}).promise;
-      state.document = doc; switchDoc('pdf',name,doc.numPages);
-      state.searchIndexPromise = null;
+      nextPdf = await pdfjs.getDocument({data:new Uint8Array(buffer.slice(0))}).promise;
+      nextCount = nextPdf.numPages;
     } else {
       // Local-only PowerPoint renderer. PDF and PPTX dependencies are fetched as public JS modules.
       const {PptxRenderer} = await import('https://esm.sh/pptx-browser@4.1.5?bundle');
-      const p = new PptxRenderer(); await p.load(buffer);
-      state.pptx = p; switchDoc('pptx',name,p.slideCount);
+      nextPptx = new PptxRenderer();
+      try {await nextPptx.load(buffer);} catch(e){nextPptx.destroy?.();throw e;}
+      nextCount = nextPptx.slideCount;
       // Extract OOXML text directly, with ZIP limits, without uploading any lecture content.
-      state.pagesText = await extractPptxTexts(buffer, p.slideCount).catch(() => Array(p.slideCount).fill(''));
+      nextText = await extractPptxTexts(buffer, nextCount).catch(() => Array(nextCount).fill(''));
     }
-    setStatus(`本地文件 · ${state.count} 页 · 点击页面可标记重点`);
+    if (!Number.isInteger(nextCount) || nextCount < 1) throw new Error('课件中没有可阅读的页面');
+    // Do not tear down a successfully opened document if a newly selected one fails.
+    const previousPdf = state.document, previousPptx = state.pptx;
+    state.renderToken++;
+    if (state.renderTask) {try {state.renderTask.cancel();} catch {} state.renderTask=null;}
+    state.document = nextPdf; state.pptx = nextPptx;
+    state.file = file; state.fileKey = fileKey; state.pagesText = nextText;
+    state.searchIndexPromise = null;
+    switchDoc(ext, name, nextCount);
+    try{previousPptx?.destroy?.();}catch{}
+    if(previousPdf){try{await previousPdf.destroy();}catch{}}
+    setStatus(state.resumed ? `已恢复阅读 · 第 ${state.page+1}/${state.count} 页 · ${state.zoomMode==='custom'?Math.round(state.zoom*100)+'%':state.zoomMode==='fit-width'?'适应宽度':'适应整页'}` : `本地文件 · ${state.count} 页 · 点击页面可标记重点`);
     await render();
     if (!ui.thumbs.classList.contains('hidden')) await populateThumbs();
   } catch (e) { console.error('Local viewer error:',e); notice('读取失败：'+(e?.message||'未知错误')); setStatus('打开失败，请检查文件格式或网络依赖'); }
@@ -179,7 +209,7 @@ function showPin(x,y) {
   ui.pin.style.top = `${r.top-stage.top+r.height*y}px`;
   ui.pin.classList.remove('hidden');
 }
-async function go(page) { if(page<0 || page>=state.count)return;state.page=page;state.selected=null;await render(); }
+async function go(page) { if(!Number.isInteger(page)||page<0||page>=state.count||page===state.page)return;state.page=page;state.selected=null;persistReadingPosition();await render(); }
 ui.canvas.addEventListener('click',(e)=>{
   if(state.kind==='demo')return;
   const r=ui.canvas.getBoundingClientRect(); const x=Math.min(1,Math.max(0,(e.clientX-r.left)/r.width));const y=Math.min(1,Math.max(0,(e.clientY-r.top)/r.height));
@@ -301,6 +331,7 @@ $('toggle-thumbs').onclick=async()=>{setPanel('thumbs','bookmarks');if(!ui.thumb
 $('toggle-bookmarks').onclick=()=>setPanel('bookmarks','thumbs');$('close-bookmarks').onclick=()=>ui.bookmarks.classList.add('hidden');
 $('toggle-search').onclick=()=>{ui.searchPanel.classList.toggle('hidden');if(!ui.searchPanel.classList.contains('hidden'))ui.search.focus();};
 $('search-go').onclick=search;ui.search.onkeydown=e=>{if(e.key==='Enter')search();};
+$('reset-reading').onclick=()=>resetReadingPosition().catch(e=>notice('重置失败：'+e.message));
 $('bookmark-current').onclick=bookmark;$('copy-context').onclick=()=>copyPacket().catch(e=>notice(e.message));
 $('send-chat').onclick=()=>sendCurrent().catch(e=>notice('发送失败：'+e.message));
 $('zoom-in').onclick=()=>setZoom('custom',(state.zoomMode==='fit-page'?1:state.zoomMode==='fit-width'?state.widthZoom:state.zoom)+ZOOM_STEP);
