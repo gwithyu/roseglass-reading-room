@@ -39,3 +39,16 @@
 }
 
 .reset-reading{font-size:11px!important;text-align:center!important;background:rgba(255,245,241,.12)!important;border-color:rgba(255,245,241,.22)!important}
+
+/* Per-document notes: tucked away in the optional sidebar; never shrink slides by default. */
+.notes-heading{display:flex;justify-content:space-between;color:#f5e6e1;font-size:11px;font-weight:650;border-top:1px solid var(--edge);padding:11px 5px 0}
+.notes-hint{font-size:11px;line-height:1.5;color:var(--sub);margin:0 4px}
+.note-text{width:100%;min-height:64px;max-height:118px;resize:vertical;border:1px solid var(--edge);border-radius:10px;background:rgba(255,255,255,.09);color:var(--text);font:inherit;font-size:12px;padding:9px}
+.note-text::placeholder{color:#d2bebb}
+.bookmarks .save-note{background:rgba(229,190,182,.27);font-size:11px;text-align:center}
+.note-list{display:flex;flex-direction:column;gap:7px;overflow-y:auto;min-height:36px;flex:1}
+.note-item{display:flex;gap:3px;align-items:flex-start;border:1px solid rgba(255,255,255,.12);border-radius:9px;background:rgba(255,255,255,.06)}
+.bookmarks .note-jump{border:0;background:transparent;flex:1;min-width:0;line-height:1.35;font-size:11px;overflow-wrap:anywhere}
+.bookmarks .note-delete{background:transparent;border:0;font-size:19px;padding:4px 7px;color:#f1d4cd}
+.bookmark-list{max-height:22%;flex:none}
+.bookmarks:has(.note-list){gap:9px}
