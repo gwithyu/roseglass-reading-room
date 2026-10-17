@@ -80,3 +80,14 @@ Click **◈** in the toolbar to open an image-only challenge overlay. The viewer
 The v6 image relay also guards against sending a stale page after document switches: it checks document identity both before the upload, after it, and before follow-up. Upload, widget-state, and follow-up errors fail to manual-export instead of silently claiming success. This test does not send lecture data until the user explicitly chooses **图文共读** on a lecture page, which remains a separate button. Visual delivery is **not certified** until tested inside the actual ChatGPT host.
 
 Run `node --test tests/*.test.mjs && node tests/smoke.mjs` to validate local logic and source wiring. Browser rendering, CDN compatibility, and actual ChatGPT image perception require additional integration testing.
+
+## v7: trustworthy course delivery and long-document indexing
+
+- Long-PDF indexing is tied to the current PDF document and text buffer, cancelled on file replacement, and yields periodically to keep the UI responsive.
+- **Full-text transfer is never called “sent” just because it was copied or downloaded.** Without a connected ChatGPT host, the reader waits for you to paste the segment and click **已粘贴，下一段** before advancing. Successful host follow-up requests are reported as *requested*, not model-read receipts.
+- Browser export and blind vision test remain available, but production ChatGPT image perception is not certified by local tests.
+- Real-course local regression input: seven-page Applied Data Analytics PDF and three-page university timetable. Long-pdf fixture (266 pages) and synthetic PPTX (35 slides) stay outside the public repo to avoid shipping course/private material. PDFs were inspected with a separate offline PDF renderer; local Chromium cannot download the pinned CDN modules in this test environment. That means **PDF.js and pptx-browser real-file rendering in the browser remains a release blocker**.
+
+### Private-site upgrade boundary
+
+This independent public repository does not control the private ChatGPT Site project. Preserving the existing Sites project and plugin identity requires editing its original Sites UI source in ChatGPT Work or a writable Sites project editor. Do not deploy this repository over the private project or overwrite its connector. See the private migration kit distributed separately; no private URLs or credentials are included here.
