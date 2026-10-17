@@ -2,6 +2,7 @@
 import {loadReadingPosition,saveReadingPosition,clearReadingPosition} from './reading-progress.mjs';
 import {loadNotes,saveNotes} from './study-notes.mjs';
 import {buildTextChunks} from './segment-text.mjs';
+import {buildPageContext,handoffMode} from './free-chatgpt-handoff.mjs';
 import {makePageImage,canvasPngBlob,samePageSnapshot,buildVisualPrompt,exportSize} from './visual-packet.mjs';
 const $ = (id) => document.getElementById(id);
 const ui = {
@@ -295,18 +296,31 @@ async function populateThumbs() {
   [...list.children].forEach(b=>observer.observe(b));
 }
 function createPacket(text, page=state.page) {
-  const loc=state.selected && state.selected.page===page ? `\n点击重点（归一化坐标）：${state.selected.x.toFixed(4)}, ${state.selected.y.toFixed(4)}` : '';
-  const pageNotes=state.notes.filter(n=>n.page===page).map(n=>`- ${n.x===null?'整页':`位置 ${n.x.toFixed(4)}, ${n.y.toFixed(4)}`}：${n.text||'已标记重点'}`).join('\n').slice(0,2500);
-  return `请与我共读这份课件，只依据实际提供的文字或图像回答，不要推测未收到的图形。\n课件：${state.file?.name||'示例'}\n格式：${state.kind.toUpperCase()}\n第 ${page+1} / ${state.count} 页${loc}\n\n===== 页面文字 =====\n${text||'（当前页没有可提取文字。图像需要另行附上，不能单凭本消息识别。）'}${pageNotes?`\n\n===== 我的本页重点笔记 =====\n${pageNotes}`:''}`;
+  return buildPageContext({
+    fileName:state.file?.name||'示例',kind:state.kind,pageIndex:page,pageCount:state.count,
+    text,selected:state.selected,notes:state.notes
+  });
 }
 async function copyPacket() {
   const text=createPacket(await pageText(state.page));try{await navigator.clipboard.writeText(text);notice('当前页文字与点击位置已复制');}catch{fallbackDownload(text,'reading-context.txt');notice('无法复制，已保存文本文件');}
 }
 function fallbackDownload(text,name) {const url=URL.createObjectURL(new Blob([text],{type:'text/plain;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),2000);}
 async function sendPacket(text) {
-  if(window.openai?.sendFollowUpMessage) {await window.openai.sendFollowUpMessage({prompt:text});notice('已发送阅读上下文到当前聊天');return;}
-  try{await navigator.clipboard.writeText(text);notice('已复制：粘贴到聊天中继续共读');}
-  catch{fallbackDownload(text,'reading-context.txt');notice('当前环境无法直连聊天，已导出文字');}
+  if(handoffMode(window.openai)==='embedded') {
+    await window.openai.sendFollowUpMessage({prompt:text});
+    notice('已发送文字到当前 ChatGPT 聊天');
+    return 'sent';
+  }
+  // No paid subscription or shared API key is needed: only user-initiated copy.
+  try {
+    await navigator.clipboard.writeText(text);
+    notice('已复制文字！点击「打开我的 ChatGPT」，在自己的聊天中粘贴并发送');
+    return 'copied';
+  } catch {
+    fallbackDownload(text,'reading-context.txt');
+    notice('复制不可用：已下载文字文件，需自行上传给自己的 ChatGPT');
+    return 'downloaded';
+  }
 }
 /** Explicit transfer only; a screenshot is not silently uploaded on page navigation. */
 async function captureVisualPage(){
@@ -347,8 +361,8 @@ async function exportCurrentImage(){
 }
 async function manualVisualFallback(blob,pageContext,page){
   downloadBlob(blob,`slide-${page+1}-marked.png`);
-  try{await navigator.clipboard.writeText(buildVisualPrompt(pageContext,false));notice('ChatGPT 当前无法直接附图：已下载 PNG 并复制文字，请手动上传图片');}
-  catch{fallbackDownload(buildVisualPrompt(pageContext,false),'reading-context.txt');notice('ChatGPT 当前无法直接附图：请上传下载的 PNG 与文字文件');}
+  try{await navigator.clipboard.writeText(buildVisualPrompt(pageContext,false));notice('图文已准备：在自己的 ChatGPT 粘贴文字，并上传下载的 PNG');}
+  catch{fallbackDownload(buildVisualPrompt(pageContext,false),'reading-context.txt');notice('图文已下载：在自己的 ChatGPT 上传 PNG 与文字文件');}
 }
 async function sendCurrent(){
   if(state.sharing)return notice('正在准备当前页图像，请稍候');
@@ -362,7 +376,7 @@ async function sendCurrent(){
     const host=window.openai;
     if(typeof host?.uploadFile!=='function'||typeof host?.setWidgetState!=='function'||typeof host?.sendFollowUpMessage!=='function'){
       await manualVisualFallback(blob,context,snapshot.page);
-      setStatus('图像未自动发送；请将导出的 PNG 拖入当前聊天');return;
+      setStatus('免费网页版 · 文字已复制或导出，PNG 已下载 · 请在自己的 ChatGPT 粘贴并上传');return;
     }
     try {
       const file=new File([blob],`slide-${snapshot.page+1}.png`,{type:'image/png'});
@@ -389,11 +403,11 @@ async function sendFullChunks() {
   if (!state.sendChunks.length) {
     state.sendChunks=buildTextChunks(state.pagesText,MAX_SEGMENT);
   }
-  if(state.sendIndex>=state.sendChunks.length){state.sendIndex=0;notice('全文分段已全部发送；再次点击可重发');return;}
+  if(state.sendIndex>=state.sendChunks.length){state.sendIndex=0;notice('全文分段处理完毕；网页版需要自己逐段粘贴，点击可重新开始');return;}
   const k=state.sendIndex,part=state.sendChunks[k];
   const text=`课件全文分段 ${k+1}/${state.sendChunks.length}，覆盖第 ${part.from}–${part.to} 页。请关联此前分段，并保留页码。仅根据这些实际文字讨论；无文字层的图像需单独上传。\n课件：${state.file.name}\n${part.text}`;
-  await sendPacket(text);state.sendIndex++;
-  setStatus(`全文分段进度 ${state.sendIndex}/${state.sendChunks.length} · 可继续发送下一段`);
+  const result=await sendPacket(text);state.sendIndex++;
+  setStatus(`全文分段 ${state.sendIndex}/${state.sendChunks.length} · ${result==='sent'?'已发往聊天':result==='copied'?'已复制待粘贴':'已导出文字文件'} · 确认粘贴后再处理下一段`);
 }
 // Lightweight OOXML text extraction. Supports deflated and stored ZIP entries, rejects extreme expansion.
 async function extractPptxTexts(arrayBuffer, count) {
@@ -443,6 +457,10 @@ ui.zoomRange.addEventListener('change',()=>setZoom('custom',Number(ui.zoomRange.
 ui.zoomPreset.addEventListener('change',()=>setZoom(ui.zoomPreset.value));
 $('fullscreen').onclick=async()=>{if(window.openai?.requestDisplayMode){try{await window.openai.requestDisplayMode({mode:'fullscreen'});return;}catch{}}if(!document.fullscreenElement)await document.documentElement.requestFullscreen?.();else await document.exitFullscreen?.();};
 document.addEventListener('keydown',e=>{if(/INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName||'') || document.activeElement?.isContentEditable)return;if(e.key==='ArrowRight'||e.key==='PageDown')go(state.page+1);if(e.key==='ArrowLeft'||e.key==='PageUp')go(state.page-1);if((e.metaKey||e.ctrlKey)&&e.key==='f'){e.preventDefault();ui.searchPanel.classList.remove('hidden');ui.search.focus();}});
+const standalone=handoffMode(window.openai)==='copy';
+$('open-own-chatgpt').classList.toggle('hidden',!standalone);
+$('send-chat').firstChild.textContent=standalone?'复制图文给我的 GPT ':'图文共读 ';
+$('send-chat').title=standalone?'下载带标记 PNG、复制页文字；用自己的 ChatGPT 粘贴并上传':'尝试在当前 ChatGPT 发送真实图文';
 restoreZoom();updateZoomUI();renderDemo();
 let resizeTimer;new ResizeObserver(()=>{clearTimeout(resizeTimer);resizeTimer=setTimeout(()=>render(),110);}).observe(ui.viewport);
 let dragDepth=0;window.addEventListener('dragenter',e=>{if(!e.dataTransfer?.types?.includes('Files'))return;e.preventDefault();dragDepth++;$('drop-hint').classList.remove('hidden');});window.addEventListener('dragover',e=>{if(e.dataTransfer?.types?.includes('Files'))e.preventDefault();});window.addEventListener('dragleave',()=>{dragDepth--;if(dragDepth<=0){dragDepth=0;$('drop-hint').classList.add('hidden');}});window.addEventListener('drop',e=>{e.preventDefault();dragDepth=0;$('drop-hint').classList.add('hidden');loadFile(e.dataTransfer?.files?.[0]);});
