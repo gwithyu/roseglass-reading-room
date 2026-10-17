@@ -24,6 +24,7 @@ function validateSelection(p){
   if(!Number.isInteger(p.page)||p.page<1||p.page>100000)return 'Invalid page';
   if(!Number.isInteger(p.pageCount)||p.pageCount<p.page||p.pageCount>100000)return 'Invalid pageCount';
   if(!validPoint(p.point ?? null))return 'Invalid point';
+  if(!Number.isSafeInteger(p.clientSequence)||p.clientSequence<1)return 'Invalid client sequence';
   if(typeof p.text!=='string'||p.text.length>MAX_TEXT)return 'Text too long or invalid';
   if(p.imageBase64!==undefined &&
     (typeof p.imageBase64!=='string'||p.imageBase64.length>MAX_IMAGE||
@@ -92,9 +93,11 @@ export class ReadingRoom {
       if(request.method!=='PUT')return response({error:'METHOD_NOT_ALLOWED'},405);
       let selection;try{selection=await jsonWithLimit(request,650000);}catch{return response({error:'INVALID_JSON_OR_SIZE'},413);}
       const error=validateSelection(selection);if(error)return response({error},400);
+      if(room.selection && selection.clientSequence<=room.selection.clientSequence)
+        return response({ok:true,stale:true,version:room.version});
       room.version++;
       room.selection={
-        page:selection.page,pageCount:selection.pageCount,point:selection.point??null,
+        page:selection.page,pageCount:selection.pageCount,clientSequence:selection.clientSequence,point:selection.point??null,
         text:selection.text,note:selection.note,imageBase64:selection.imageBase64??null,
         mimeType:selection.imageBase64?'image/png':null,updatedAt:Date.now()
       };
