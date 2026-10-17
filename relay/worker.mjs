@@ -58,8 +58,14 @@ const internalRequest=(url,method='GET',body,secret)=>new Request(url,{
   ...(body?{body:JSON.stringify(body)}:{})
 });
 export class ReadingRoom {
-  constructor(state){this.state=state;}
-  async alarm(){await this.state.storage.deleteAll();}
+  constructor(state){this.state=state;this.mutationQueue=Promise.resolve();}
+  serializeMutation(operation){
+    const next=this.mutationQueue.then(operation);
+    // Rejections cannot poison the queue; the caller still receives the original failure.
+    this.mutationQueue=next.catch(()=>{});
+    return next;
+  }
+  async alarm(){return this.serializeMutation(()=>this.state.storage.deleteAll());}
   async fetch(request){
     const u=new URL(request.url),action=u.pathname.split('/')[1];
     if(action==='init'){
@@ -86,23 +92,32 @@ export class ReadingRoom {
     if(!tokenMatch(providedHash,room.writeHash))return response({error:'AUTH_DENIED'},403);
     if(action==='close'){
       if(request.method!=='DELETE')return response({error:'METHOD_NOT_ALLOWED'},405);
-      await this.state.storage.deleteAll();
-      return response({ok:true});
+      return this.serializeMutation(async()=>{
+        const latest=await this.state.storage.get('record');
+        if(!latest||latest.expiresAt<=Date.now())return response({error:'ROOM_EXPIRED'},410);
+        await this.state.storage.deleteAll();
+        return response({ok:true});
+      });
     }
     if(action==='write'){
       if(request.method!=='PUT')return response({error:'METHOD_NOT_ALLOWED'},405);
       let selection;try{selection=await jsonWithLimit(request,650000);}catch{return response({error:'INVALID_JSON_OR_SIZE'},413);}
       const error=validateSelection(selection);if(error)return response({error},400);
-      if(room.selection && selection.clientSequence<=room.selection.clientSequence)
-        return response({ok:true,stale:true,version:room.version});
-      room.version++;
-      room.selection={
-        page:selection.page,pageCount:selection.pageCount,clientSequence:selection.clientSequence,point:selection.point??null,
-        text:selection.text,note:selection.note,imageBase64:selection.imageBase64??null,
-        mimeType:selection.imageBase64?'image/png':null,updatedAt:Date.now()
-      };
-      await this.state.storage.put('record',room);
-      return response({ok:true,version:room.version});
+      return this.serializeMutation(async()=>{
+        // Read AFTER acquiring the mutation queue; never resurrect a closed room.
+        const latest=await this.state.storage.get('record');
+        if(!latest||latest.expiresAt<=Date.now())return response({error:'ROOM_EXPIRED'},410);
+        if(latest.selection && selection.clientSequence<=latest.selection.clientSequence)
+          return response({ok:true,stale:true,version:latest.version});
+        latest.version++;
+        latest.selection={
+          page:selection.page,pageCount:selection.pageCount,clientSequence:selection.clientSequence,point:selection.point??null,
+          text:selection.text,note:selection.note,imageBase64:selection.imageBase64??null,
+          mimeType:selection.imageBase64?'image/png':null,updatedAt:Date.now()
+        };
+        await this.state.storage.put('record',latest);
+        return response({ok:true,version:latest.version});
+      });
     }
     return response({error:'NOT_FOUND'},404);
   }
