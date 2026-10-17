@@ -6,11 +6,11 @@ This is a **new, clean-room public starter implementation**, not an export or de
 
 ## Features
 
-- **Slides first:** document fills the flexible reading pane; thumbnails are hidden by default; the toolbar stays compact. Desktop/mobile, full screen, **a 50–300% zoom slider** (relative to fit-page size), **Fit page / Fit width / Custom** presets, scrollable enlarged slides, and remembered zoom preferences.
+- **Slides first:** document fills the flexible reading pane; thumbnails are hidden by default; the toolbar stays compact. Desktop/mobile, full screen, **a 50–300% zoom slider** (relative to fit-page size), **Fit page / Fit width / Custom** presets, scrollable enlarged slides, and per-document remembered zoom and last page.
 - **Actual high-transparency glass:** translucent rose/charcoal surfaces with `backdrop-filter: blur()` and optional supporting gradients; no opaque pink wall.
 - **PDF:** open locally with Mozilla PDF.js, page navigation, text extraction, multi-page search, lazy thumbnails, full-text segmented transfer.
 - **PPTX:** open locally with MIT-licensed `pptx-browser` canvas renderer, page navigation, approximate text extraction from OOXML, and segmented transfer. Legacy `.ppt` isn't supported.
-- **Study workflow:** click to mark a normalized point; page context export; local bookmarks by truncated SHA-256 fingerprint; drag-and-drop; no private credentials.
+- **Study workflow:** resume each document at its own last page and zoom (even after reopening the browser); reset only that document’s reading position from Bookmarks; click to mark a normalized point; page context export; local bookmarks by truncated SHA-256 fingerprint; drag-and-drop; no private credentials.
 - **ChatGPT:** when embedded as a permitted ChatGPT App UI and `window.openai.sendFollowUpMessage` exists, send textual page context to the ongoing conversation. Otherwise copy/export for manual paste. No claim is made that this standalone site automatically attaches page images or reopens an existing private ChatGPT chat.
 - **No backend:** all document parsing remains in the browser. On first file open, browser downloads the public libraries from the CDN; on-page PDF/PPTX contents are not uploaded by this app.
 
@@ -31,7 +31,7 @@ The stand-alone UI detects `window.openai?.sendFollowUpMessage({prompt})` (ChatG
 
 ## Reading size
 
-The footer reading controls let you pick **适应整页 (Fit page)**, **适应宽度 (Fit width)**, or **自定义比例 (Custom)**. The slider and ± buttons control 50–300% relative to the current fit-page size; enlarged pages overflow into a scrollable viewport rather than being resized back down. Zoom preferences are stored only in this browser under `roseglass:v1:zoom`, with no file contents or private account data. Full-screen hides browser chrome where supported. Glass/blur is applied to surrounding UI, **never to the slide canvas itself**.
+The footer reading controls let you pick **适应整页 (Fit page)**, **适应宽度 (Fit width)**, or **自定义比例 (Custom)**. The slider and ± buttons control 50–300% relative to the current fit-page size; enlarged pages overflow into a scrollable viewport rather than being resized back down. Each file has an independent page and zoom record under `roseglass:v2:position:<SHA-256 prefix>` in this browser. The demo still uses the older global `roseglass:v1:zoom` preference, which is never applied to newly opened documents. The reader stores neither file names nor file contents. If browser storage or secure hashing is unavailable, the page works but cannot reliably resume its position. Full-screen hides browser chrome where supported. Glass/blur is applied to surrounding UI, **never to the slide canvas itself**.
 
 ## Browser and network requirements
 
@@ -44,7 +44,7 @@ For CSP-restricted or offline deployments, vendor *matching version* JS modules 
 
 ## Security / privacy notes
 
-- There is no server upload or analytics. Browser bookmark state persists locally under `roseglass:v1:bookmarks:*`, keyed by document SHA-256 digest prefix, **never by a file name or extracted text**.
+- There is no server upload or analytics. Per-file reading position saves `{page, zoomMode, zoom}` and can be reset without touching bookmarks. Browser bookmark state persists locally under `roseglass:v1:bookmarks:*`, keyed by document SHA-256 digest prefix, **never by a file name or extracted text**.
 - Sending to ChatGPT or copying context is explicitly user initiated. The text of the selected page (or consecutive chunks) is sent only after clicking a send control.
 - Search results are inserted using `textContent`, not untrusted HTML. Selected files are not sent to the CDN, but scripts fetched from a CDN execute in the page; privacy-sensitive hosts should self-host audited libraries.
 - For very large/complex documents browsers may run out of memory. There is a 250 MB input cap and a 6 MB per-slide XML extraction cap.
