@@ -12,6 +12,8 @@ assert.match(html,/value="custom"/);
 assert.match(html,/id="reset-reading"/);
 for(const id of ['note-text','note-list','save-note','notes-count'])assert.ok(html.includes(`id="${id}"`),`missing ${id}`);
 assert.match(js,/loadNotes/);assert.match(js,/saveNotes/);assert.match(js,/buildTextChunks/);
+for(const id of ['export-image','send-chat'])assert.ok(html.includes(`id="${id}"`),`missing ${id}`);
+assert.match(js,/makePageImage/);assert.match(js,/canvasPngBlob/);assert.match(js,/host\.uploadFile/);assert.match(js,/host\.setWidgetState/);assert.match(js,/imageIds:\[upload\.fileId\]/);assert.match(js,/manualVisualFallback/);
 assert.match(html,/\.pdf,\.pptx/);
 assert.match(css,/backdrop-filter:\s*blur\(/);
 assert.match(css,/\.slide-viewport\{[^}]*height:100%/);
@@ -31,4 +33,4 @@ function visit(dir){for(const entry of readdirSync(dir,{withFileTypes:true})){co
 visit(new URL('../',import.meta.url).pathname);
 const text=all.filter(p=>!p.endsWith('.png') && !p.endsWith('smoke.mjs')).map(p=>readFileSync(p,'utf8')).join('\n');
 for(const secret of ['-----BEGIN PRIVATE KEY-----','api_key=','github_pat_','authorization: bearer ','client_secret='])assert.ok(!text.toLowerCase().includes(secret.toLowerCase()),`private string detected: ${secret}`);
-console.log('PASS: zoom, reading progress, per-document notes, lossless chunks, PDF/PPTX, follow-up, privacy scan');
+console.log('PASS: zoom, progress, notes, lossless chunks, image export, optional widget-image bridge, manual fallback, privacy');
