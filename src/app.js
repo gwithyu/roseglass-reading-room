@@ -3,14 +3,53 @@ const $ = (id) => document.getElementById(id);
 const ui = {
   file: $('file-input'), open: $('open-file'), filename: $('filename'), kind: $('file-kind'),
   canvas: $('page-canvas'), demo: $('demo-slide'), pin: $('selection-pin'), stage: $('slide-fit'), viewport: $('slide-viewport'),
-  prev: $('prev'), next: $('next'), counter: $('page-counter'), status: $('status'), zoomLabel: $('zoom-label'),
+  prev: $('prev'), next: $('next'), counter: $('page-counter'), status: $('status'), zoomLabel: $('zoom-label'), zoomRange: $('zoom-range'), zoomPreset: $('zoom-preset'),
   thumbs: $('thumbs'), thumbList: $('thumb-list'), bookmarks: $('bookmarks'), bookmarkList: $('bookmark-list'),
   searchPanel: $('search-panel'), search: $('search-input'), searchResults: $('search-results'), toast: $('toast')
 };
 const state = { kind: 'demo', file: null, document: null, pptx: null, page: 0, count: 1, pagesText: [],
-  fileKey: 'demo', bookmarks: new Set(), zoom: 1, selected: null, renderToken: 0, pdfjs: null,
+  fileKey: 'demo', bookmarks: new Set(), zoom: 1, zoomMode: 'fit-page', widthZoom: 1, selected: null, renderToken: 0, pdfjs: null,
   searchIndexPromise: null, sendIndex: 0, sendChunks: [], loading: false, renderTask: null };
 const MAX_SEGMENT = 9000;
+const ZOOM_MIN = 0.5, ZOOM_MAX = 3, ZOOM_STEP = 0.1;
+const ZOOM_STORAGE = 'roseglass:v1:zoom';
+const zoomMath = {
+  clamp(value) { return Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, value)); },
+  fit(w, h, availW, availH) { return Math.min(availW/w, availH/h); },
+  scale(mode, zoom, w, h, availW, availH) {
+    const fit=this.fit(w,h,availW,availH);
+    return mode === 'fit-width' ? availW/w : fit*(mode==='custom' ? zoom : 1);
+  }
+};
+function restoreZoom() {
+  try {
+    const value=JSON.parse(localStorage.getItem(ZOOM_STORAGE)||'null');
+    if(['fit-page','fit-width','custom'].includes(value?.mode)) state.zoomMode=value.mode;
+    if(Number.isFinite(value?.zoom)) state.zoom=zoomMath.clamp(value.zoom);
+  } catch { /* Storage is optional in sandboxed hosts */ }
+}
+function persistZoom() {
+  try { localStorage.setItem(ZOOM_STORAGE,JSON.stringify({mode:state.zoomMode,zoom:state.zoom})); } catch {}
+}
+function updateZoomUI() {
+  ui.zoomPreset.value=state.zoomMode;
+  const ratio=state.zoomMode==='fit-width'?state.widthZoom:(state.zoomMode==='fit-page'?1:state.zoom);
+  ui.zoomRange.value=String(Math.round(zoomMath.clamp(ratio)*100));
+  const label=state.zoomMode==='fit-page'?'整页':state.zoomMode==='fit-width'?'宽度':`${Math.round(state.zoom*100)}%`;
+  ui.zoomLabel.textContent=label;
+  ui.zoomRange.setAttribute('aria-label',`课件大小，相当于整页适配的 ${Math.round(ratio*100)}%`);
+  ui.zoomLabel.title='自定义比例以适应整页尺寸为 100% 基准';
+}
+let zoomTimer;
+function setZoom(mode, zoom=state.zoom, live=false) {
+  state.zoomMode=mode;
+  state.zoom=zoomMath.clamp(Math.round(zoom*10)/10);
+  updateZoomUI();persistZoom();
+  clearTimeout(zoomTimer);
+  if(live) zoomTimer=setTimeout(()=>render().catch(e=>notice('缩放失败：'+e.message)),90);
+  else render().catch(e=>notice('缩放失败：'+e.message));
+}
+
 
 function notice(s) { ui.toast.textContent = s; ui.toast.classList.remove('hidden'); clearTimeout(notice.timer); notice.timer = setTimeout(() => ui.toast.classList.add('hidden'), 3200); }
 function setStatus(s) { ui.status.textContent = s; }
@@ -28,14 +67,14 @@ function drawBookmarks() {
 }
 function resetPanels() { ui.searchResults.replaceChildren(); ui.searchResults.textContent = '输入关键词查找页面文字'; ui.thumbList.replaceChildren(); state.sendIndex = 0; state.sendChunks = []; }
 function switchDoc(kind, name, count) {
-  state.kind = kind; state.page = 0; state.count = count; state.selected = null; state.zoom = 1;
+  state.kind = kind; state.page = 0; state.count = count; state.selected = null;
   ui.filename.textContent = filenameShort(name); ui.kind.textContent = kind.toUpperCase();
   ui.demo.classList.add('hidden'); ui.canvas.classList.remove('hidden'); ui.pin.classList.add('hidden');
   resetPanels(); restoreBookmarks(); refreshCounter();
 }
 function refreshCounter() {
   ui.counter.innerHTML = `${safeNumber(state.page)} <em>/</em> ${safeNumber(state.count-1)}`;
-  ui.zoomLabel.textContent = state.zoom===1 ? '适配' : `${Math.round(state.zoom*100)}%`;
+  updateZoomUI();
   $('prev').disabled = state.page === 0;
   $('next').disabled = state.page === state.count - 1;
   ui.thumbList.querySelectorAll('.thumb-item').forEach((b,i)=>b.classList.toggle('active',i===state.page));
@@ -87,11 +126,21 @@ async function loadFile(file) {
   finally { state.loading=false; }
 }
 function fitScale(pageW,pageH) {
-  const r = ui.viewport.getBoundingClientRect();
-  return Math.min(Math.max(50,r.width-28)/pageW,Math.max(50,r.height-96)/pageH) * state.zoom;
+  const r=ui.viewport.getBoundingClientRect();
+  const availW=Math.max(50,r.width-28),availH=Math.max(50,r.height-96);
+  state.widthZoom=(availW/pageW)/zoomMath.fit(pageW,pageH,availW,availH);
+  return zoomMath.scale(state.zoomMode,state.zoom,pageW,pageH,availW,availH);
+}
+function renderDemo() {
+  const r=ui.viewport.getBoundingClientRect();
+  const w=fitScale(16,9)*16;
+  ui.demo.style.width=`${Math.round(w)}px`;
+  ui.demo.style.height=`${Math.round(w*9/16)}px`;
+  updateZoomUI();
 }
 async function render() {
-  if (state.kind === 'demo' || !state.document && !state.pptx) return;
+  if(state.kind==='demo'){renderDemo();return;}
+  if(!state.document && !state.pptx)return;
   const token = ++state.renderToken;
   if (state.renderTask) { try { state.renderTask.cancel(); } catch {} state.renderTask=null; }
   ui.pin.classList.add('hidden');
@@ -102,7 +151,10 @@ async function render() {
     if (token!==state.renderToken) return;
     const natural = page.getViewport({scale:1});
     const cssScale = fitScale(natural.width,natural.height);
-    const dpr = Math.min(2,devicePixelRatio||1);
+    // Bound pixel count so large zoom levels remain scrollable without exhausting GPU memory.
+    const cssW=natural.width*cssScale,cssH=natural.height*cssScale;
+    const maxDpr=Math.sqrt(22_000_000/Math.max(1,cssW*cssH));
+    const dpr=Math.max(0.5,Math.min(2,devicePixelRatio||1,maxDpr));
     const vp = page.getViewport({scale:cssScale*dpr});
     canvas.width=Math.floor(vp.width); canvas.height=Math.floor(vp.height);
     canvas.style.width=`${vp.width/dpr}px`;canvas.style.height=`${vp.height/dpr}px`;
@@ -111,11 +163,12 @@ async function render() {
     finally { if (token===state.renderToken) state.renderTask=null; }
     if (token!==state.renderToken) return;
   } else {
-    const ratio=16/9; const r=ui.viewport.getBoundingClientRect();
-    const w=Math.max(100,Math.floor(Math.min(r.width-28,(r.height-96)*ratio)*state.zoom));
-    await state.pptx.renderSlide(state.page,canvas,Math.max(960,Math.round(w*Math.min(2,devicePixelRatio||1))));
+    const ratio=16/9;
+    const w=Math.max(100,Math.floor(fitScale(16,9)*16));
+    const pixels=Math.min(4096,Math.max(960,Math.round(w*Math.min(2,devicePixelRatio||1))));
+    await state.pptx.renderSlide(state.page,canvas,pixels);
     if(token!==state.renderToken)return;
-    canvas.style.width=w+'px';canvas.style.height='auto';
+    canvas.style.width=w+'px';canvas.style.height=Math.round(w*(canvas.height/canvas.width||9/16))+'px';
   }
   if (state.selected && state.selected.page===state.page) showPin(state.selected.x,state.selected.y);
   refreshCounter();
@@ -250,10 +303,14 @@ $('toggle-search').onclick=()=>{ui.searchPanel.classList.toggle('hidden');if(!ui
 $('search-go').onclick=search;ui.search.onkeydown=e=>{if(e.key==='Enter')search();};
 $('bookmark-current').onclick=bookmark;$('copy-context').onclick=()=>copyPacket().catch(e=>notice(e.message));
 $('send-chat').onclick=()=>sendCurrent().catch(e=>notice('发送失败：'+e.message));
-$('zoom-in').onclick=()=>{state.zoom=Math.min(state.zoom+.15,2.5);render();};
-$('zoom-out').onclick=()=>{state.zoom=Math.max(state.zoom-.15,.5);render();};
+$('zoom-in').onclick=()=>setZoom('custom',(state.zoomMode==='fit-page'?1:state.zoomMode==='fit-width'?state.widthZoom:state.zoom)+ZOOM_STEP);
+$('zoom-out').onclick=()=>setZoom('custom',(state.zoomMode==='fit-page'?1:state.zoomMode==='fit-width'?state.widthZoom:state.zoom)-ZOOM_STEP);
+ui.zoomRange.addEventListener('input',()=>setZoom('custom',Number(ui.zoomRange.value)/100,true));
+ui.zoomRange.addEventListener('change',()=>setZoom('custom',Number(ui.zoomRange.value)/100));
+ui.zoomPreset.addEventListener('change',()=>setZoom(ui.zoomPreset.value));
 $('fullscreen').onclick=async()=>{if(window.openai?.requestDisplayMode){try{await window.openai.requestDisplayMode({mode:'fullscreen'});return;}catch{}}if(!document.fullscreenElement)await document.documentElement.requestFullscreen?.();else await document.exitFullscreen?.();};
 document.addEventListener('keydown',e=>{if(/INPUT|TEXTAREA/.test(document.activeElement?.tagName||''))return;if(e.key==='ArrowRight'||e.key==='PageDown')go(state.page+1);if(e.key==='ArrowLeft'||e.key==='PageUp')go(state.page-1);if((e.metaKey||e.ctrlKey)&&e.key==='f'){e.preventDefault();ui.searchPanel.classList.remove('hidden');ui.search.focus();}});
+restoreZoom();updateZoomUI();renderDemo();
 let resizeTimer;new ResizeObserver(()=>{clearTimeout(resizeTimer);resizeTimer=setTimeout(()=>render(),110);}).observe(ui.viewport);
 let dragDepth=0;window.addEventListener('dragenter',e=>{if(!e.dataTransfer?.types?.includes('Files'))return;e.preventDefault();dragDepth++;$('drop-hint').classList.remove('hidden');});window.addEventListener('dragover',e=>{if(e.dataTransfer?.types?.includes('Files'))e.preventDefault();});window.addEventListener('dragleave',()=>{dragDepth--;if(dragDepth<=0){dragDepth=0;$('drop-hint').classList.add('hidden');}});window.addEventListener('drop',e=>{e.preventDefault();dragDepth=0;$('drop-hint').classList.add('hidden');loadFile(e.dataTransfer?.files?.[0]);});
 // Public demo enhancement: let users read a synthetic slide with zero network access.
