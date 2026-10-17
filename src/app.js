@@ -295,7 +295,7 @@ async function publishLivePoint(point,clickId){
     page:page+1,pageCount:state.count,point,text,note,
     ...(imageBase64?{imageBase64,mimeType:'image/png'}:{})
   });
-  if(roomId===liveSync.roomId)liveStatus(result.stale?'较早点击已忽略，保留最新重点':
+  if(roomId===liveSync.roomId&&clickId===latestLiveClick)liveStatus(result.stale?'较早点击已忽略，保留最新重点':
     `已同步第 ${page+1} 页重点 · v${result.version} · ${imageBase64?'含真实页面图像':'图像过大或不可用：仅文字与坐标'}`);
 }
 function bookmark() {if(state.bookmarks.has(state.page))state.bookmarks.delete(state.page);else state.bookmarks.add(state.page);persistBookmarks();drawBookmarks();notice(state.bookmarks.has(state.page)?'这一页已收藏':'已取消收藏');}
