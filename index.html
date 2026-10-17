@@ -55,13 +55,25 @@
           <div class="drop-hint hidden" id="drop-hint">松开鼠标以打开课件</div>
         </div>
         <div class="floating-tools glass" id="floating-tools">
-          <button id="prev" class="icon-button" aria-label="上一页" title="上一页">‹</button>
-          <span class="page-counter" id="page-counter">01 <em>/</em> 01</span>
-          <button id="next" class="icon-button" aria-label="下一页" title="下一页">›</button>
+          <div class="page-controls" role="group" aria-label="课件翻页">
+            <button id="prev" class="icon-button" aria-label="上一页" title="上一页">‹</button>
+            <span class="page-counter" id="page-counter">01 <em>/</em> 01</span>
+            <button id="next" class="icon-button" aria-label="下一页" title="下一页">›</button>
+          </div>
           <span class="vertical-divider"></span>
-          <button id="zoom-out" class="icon-button" aria-label="缩小">−</button>
-          <span class="zoom-value" id="zoom-label">适配</span>
-          <button id="zoom-in" class="icon-button" aria-label="放大">＋</button>
+          <div class="zoom-controls" role="group" aria-label="课件页面大小">
+            <button id="zoom-out" class="icon-button" aria-label="缩小课件" title="缩小 10%">−</button>
+            <label class="visually-hidden" for="zoom-range">课件大小，按适应整页的百分比</label>
+            <input id="zoom-range" class="zoom-range" type="range" min="50" max="300" step="10" value="100" aria-label="课件大小：100%" />
+            <output for="zoom-range" class="zoom-value" id="zoom-label">100%</output>
+            <button id="zoom-in" class="icon-button" aria-label="放大课件" title="放大 10%">＋</button>
+            <label class="visually-hidden" for="zoom-preset">选择页面适配模式</label>
+            <select id="zoom-preset" class="zoom-preset" title="页面大小模式" aria-label="页面大小模式">
+              <option value="fit-page">适应整页</option>
+              <option value="fit-width">适应宽度</option>
+              <option value="custom">自定义比例</option>
+            </select>
+          </div>
           <span class="vertical-divider"></span>
           <button id="bookmark-current" class="icon-button" aria-label="收藏这一页" title="收藏这一页">☆</button>
         </div>
