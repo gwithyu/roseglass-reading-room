@@ -35,5 +35,5 @@ const all=[];
 function visit(dir){for(const entry of readdirSync(dir,{withFileTypes:true})){const p=join(dir,entry.name);if(entry.isDirectory())visit(p);else all.push(p);}}
 visit(new URL('../',import.meta.url).pathname);
 const text=all.filter(p=>!p.endsWith('.png') && !p.endsWith('smoke.mjs')).map(p=>readFileSync(p,'utf8')).join('\n');
-for(const secret of ['-----BEGIN PRIVATE KEY-----','api_key=','github_pat_','authorization: bearer ','client_secret='])assert.ok(!text.toLowerCase().includes(secret.toLowerCase()),`private string detected: ${secret}`);
+for(const secret of ['-----BEGIN '+'PRIVATE KEY-----','api_key=','github_'+'pat_','authorization: bearer ','client_secret='])assert.ok(!text.toLowerCase().includes(secret.toLowerCase()),`private string detected: ${secret}`);
 console.log('PASS: zoom, progress, notes, lossless chunks, image export, optional widget-image bridge, manual fallback, privacy');
