@@ -71,3 +71,12 @@ Open **BOOKMARKS & NOTES** in the top toolbar (closed by default, so the slide r
 ## v5: actual page pixels and click point
 
 The PNG exporter draws from the original PDF page or PPTX slide at bounded high resolution (long edge up to 2400 px and about 4.5 megapixels), not from the surrounding blurred glass or mobile-sized preview. A burgundy focus ring marks the normalized click location; notes and extracted text accompany the message. If the image is not readable by the model, it must say so rather than invent a shape or color. The **download PNG** fallback is the dependable way to attach a real image to a normal chat. Automated end-to-end visual receipt in ChatGPT is **not yet confirmed**. For canvas-tainted PPTX assets, the export may fail with an explicit warning and the user can take a screenshot instead.
+
+
+## v6: actual image-receipt blind test and stale-page guard
+
+Click **◈** in the toolbar to open an image-only challenge overlay. The viewer generates a randomized **PAGE KEY**, colored center shape, and 2×2 color grid as canvas pixels. The follow-up message deliberately contains **none of the answer values**. Click **发往当前 Chat 验收** to test the optional host image-ref pipeline; only a chat response accurately describing the image counts as a successful visual receipt. A successful upload or message request **does not** count. If the host extension is unavailable or fails, the reader exports a PNG for manual attachment to the same chat. The overlay stays off by default and does not shrink the reading canvas.
+
+The v6 image relay also guards against sending a stale page after document switches: it checks document identity both before the upload, after it, and before follow-up. Upload, widget-state, and follow-up errors fail to manual-export instead of silently claiming success. This test does not send lecture data until the user explicitly chooses **图文共读** on a lecture page, which remains a separate button. Visual delivery is **not certified** until tested inside the actual ChatGPT host.
+
+Run `node --test tests/*.test.mjs && node tests/smoke.mjs` to validate local logic and source wiring. Browser rendering, CDN compatibility, and actual ChatGPT image perception require additional integration testing.
