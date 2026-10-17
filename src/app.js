@@ -19,6 +19,7 @@ const state = { kind: 'demo', file: null, document: null, pptx: null, page: 0, c
   fileKey: null, bookmarks: new Set(), notes: [], zoom: 1, zoomMode: 'fit-page', widthZoom: 1, resumed: false, selected: null, renderToken: 0, pdfjs: null,
   searchIndexPromise: null, sendIndex: 0, sendChunks: [], loading: false, renderTask: null, canvasPage: null, sharing: false };
 const liveSync=createLiveSync();
+let latestLiveClick=0;
 const MAX_SEGMENT = 9000;
 const ZOOM_MIN = 0.5, ZOOM_MAX = 3, ZOOM_STEP = 0.1;
 const ZOOM_STORAGE = 'roseglass:v1:zoom';
@@ -252,7 +253,7 @@ ui.canvas.addEventListener('click',(e)=>{
   const r=ui.canvas.getBoundingClientRect(); const x=Math.min(1,Math.max(0,(e.clientX-r.left)/r.width));const y=Math.min(1,Math.max(0,(e.clientY-r.top)/r.height));
   state.selected={page:state.page,x,y};showPin(x,y);
   notice(liveSync.active?'已标记，正在同步给当前临时会话…':'已标记重点 · 打开书签面板可保存为笔记');
-  if(liveSync.active)publishLivePoint({x,y}).catch(err=>liveStatus('同步失败：'+err.message));
+  if(liveSync.active){const clickId=++latestLiveClick;publishLivePoint({x,y},clickId).catch(err=>{if(clickId===latestLiveClick)liveStatus('同步失败：'+err.message);});}
 });
 function liveStatus(text){$('live-status').textContent=text;}
 function liveControls(){
@@ -282,13 +283,14 @@ async function liveImage(page,fileKey,point){
   const png=target.toDataURL('image/png').split(',')[1];
   return png?.length<=480000?png:null;
 }
-async function publishLivePoint(point){
+async function publishLivePoint(point,clickId){
   const roomId=liveSync.roomId,fileKey=state.fileKey,page=state.page;
   const text=(await pageText(page)).slice(0,8500);
-  if(!liveSync.active||roomId!==liveSync.roomId||fileKey!==state.fileKey||page!==state.page)return;
+  if(clickId!==latestLiveClick||!liveSync.active||roomId!==liveSync.roomId||fileKey!==state.fileKey||page!==state.page)return;
   const imageBase64=await liveImage(page,fileKey,point);
-  if(!liveSync.active||roomId!==liveSync.roomId||fileKey!==state.fileKey||page!==state.page)return;
+  if(clickId!==latestLiveClick||!liveSync.active||roomId!==liveSync.roomId||fileKey!==state.fileKey||page!==state.page)return;
   const note=state.notes.filter(n=>n.page===page).map(n=>n.text).filter(Boolean).join('; ').slice(0,500);
+  if(clickId!==latestLiveClick)return;
   const result=await liveSync.publish({
     page:page+1,pageCount:state.count,point,text,note,
     ...(imageBase64?{imageBase64,mimeType:'image/png'}:{})
