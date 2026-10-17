@@ -1,0 +1,20 @@
+import {readFileSync,readdirSync} from 'node:fs';
+import {join} from 'node:path';
+import assert from 'node:assert/strict';
+const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
+const js=readFileSync(new URL('../src/app.js',import.meta.url),'utf8');
+const css=readFileSync(new URL('../src/styles.css',import.meta.url),'utf8');
+assert.match(html,/id="slide-viewport"/);
+assert.match(html,/id="page-canvas"/);
+assert.match(html,/\.pdf,\.pptx/);
+assert.match(css,/backdrop-filter:\s*blur\(/);
+assert.match(css,/\.slide-viewport\{[^}]*height:100%/);
+assert.match(js,/sendFollowUpMessage/);
+assert.match(js,/extractPptxTexts/);
+assert.match(js,/MAX_SEGMENT/);
+const all=[];
+function visit(dir){for(const entry of readdirSync(dir,{withFileTypes:true})){const p=join(dir,entry.name);if(entry.isDirectory())visit(p);else all.push(p);}}
+visit(new URL('../',import.meta.url).pathname);
+const text=all.filter(p=>!p.endsWith('.png') && !p.endsWith('smoke.mjs')).map(p=>readFileSync(p,'utf8')).join('\n');
+for(const secret of ['-----BEGIN PRIVATE KEY-----','api_key=','github_pat_','authorization: bearer ','client_secret='])assert.ok(!text.toLowerCase().includes(secret.toLowerCase()),`private string detected: ${secret}`);
+console.log('PASS: UI structure, glass style, PDF/PPTX sources, follow-up, segmentation, privacy keyword scan');
