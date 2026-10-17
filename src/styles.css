@@ -6,3 +6,34 @@
 /* Zoomed lecture pages must remain full-resolution and scrollable, not re-clamped. */
 #page-canvas{max-width:none!important;max-height:none!important;flex:none}
 .slide-fit:has(#page-canvas:not(.hidden)){max-width:none;max-height:none;min-width:100%;min-height:100%;width:max-content;height:max-content}
+
+/* Reading-size controls: page stays crisp; only the surrounding chrome is translucent. */
+.visually-hidden{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.zoom-controls{display:flex;align-items:center;gap:5px;min-width:0}
+.zoom-range{width:clamp(72px,11vw,154px);height:18px;accent-color:#dfbbb6;cursor:pointer;touch-action:pan-y}
+.zoom-value{min-width:43px;font-variant-numeric:tabular-nums}
+.zoom-preset{max-width:105px;height:33px;padding:0 7px;color:#f9f3f1;background:rgba(66,44,55,.48);border:1px solid rgba(255,244,241,.24);border-radius:10px;font-size:11px;cursor:pointer}
+.zoom-preset option{background:#3c3038;color:#fff}
+.slide-viewport{display:flex;align-items:safe center;justify-content:safe center;overflow:auto;overscroll-behavior:contain;scrollbar-gutter:stable}
+.slide-fit,.slide-fit:has(#page-canvas:not(.hidden)){display:block;position:relative;flex:0 0 auto;min-width:0;min-height:0;max-width:none;max-height:none;width:max-content;height:max-content}
+.demo-slide,canvas#page-canvas{display:block;max-width:none;max-height:none;flex:none;object-fit:fill}
+/* Mobile: split the floating controls into two readable rows instead of shrinking the slides. */
+@media(max-width:700px){
+  .floating-tools{width:min(98%,440px);flex-wrap:wrap;justify-content:center;padding:5px 8px;gap:2px 6px;bottom:7px}
+  .zoom-controls{flex:1;justify-content:center}
+  .zoom-range{width:clamp(55px,17vw,110px)}
+  .zoom-preset{max-width:93px;font-size:10px}
+  .floating-tools .vertical-divider{display:none}
+  .slide-viewport{padding-bottom:105px}
+  .page-counter{min-width:57px}
+}
+
+.page-controls{display:flex;align-items:center;gap:4px}
+@media(max-width:700px){
+  .floating-tools{display:grid;grid-template-columns:minmax(0,1fr) auto;width:min(96%,360px);padding:5px 7px;gap:3px 4px}
+  .page-controls{grid-row:1;grid-column:1;justify-content:center}
+  #bookmark-current{grid-row:1;grid-column:2}
+  .zoom-controls{grid-row:2;grid-column:1/3;width:100%;justify-content:center;min-width:0}
+  .zoom-range{width:clamp(55px,17vw,110px)}
+  .zoom-preset{max-width:92px}
+}
