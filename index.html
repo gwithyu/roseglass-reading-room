@@ -94,9 +94,10 @@
     <footer class="bottom glass">
       <div class="context"><span class="status-dot"></span><span id="status">在浏览器中阅读 · 文件不会自动上传</span></div>
       <div class="bottom-actions">
-        <button id="copy-context" class="bottom-button secondary">复制当前页内容</button>
-        <button id="export-image" class="bottom-button secondary" title="下载包含点击标记的本页图像">导出本页 PNG</button>
-        <button id="send-chat" class="bottom-button primary" title="尝试发送页面图像和文字，若宿主不支持则导出 PNG">图文共读 <span>↗</span></button>
+        <button id="copy-context" class="bottom-button secondary">复制当前页文字</button>
+        <button id="export-image" class="bottom-button secondary" title="下载包含点击标记的当前页真实图像">导出带标记 PNG</button>
+        <button id="send-chat" class="bottom-button primary" title="准备本页图文，交给自己的 GPT">图文共读 <span>↗</span></button>
+        <a id="open-own-chatgpt" class="bottom-button secondary hidden" href="https://chatgpt.com/" target="_blank" rel="noopener noreferrer" title="在你自己的 ChatGPT 账号中粘贴课件文字、上传页面 PNG">打开我的 ChatGPT ↗</a>
       </div>
     </footer>
   </main>
