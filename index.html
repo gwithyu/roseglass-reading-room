@@ -25,6 +25,7 @@
         <button id="toggle-thumbs" class="tool-button" title="显示或隐藏缩略图" aria-label="切换缩略图">▦</button>
         <button id="toggle-search" class="tool-button" title="全文搜索" aria-label="全文搜索">⌕</button>
         <button id="toggle-bookmarks" class="tool-button" title="书签和重点笔记" aria-label="查看书签和重点笔记">♧</button>
+        <button id="toggle-vision-test" class="tool-button" title="图像盲测：确认聊天能否真正识图" aria-label="图像链路盲测">◈</button>
         <button id="fullscreen" class="tool-button" title="全屏阅读" aria-label="全屏阅读">⛶</button>
       </div>
       <input type="file" id="file-input" accept=".pdf,.pptx,application/pdf,application/vnd.openxmlformats-officedocument.presentationml.presentation" hidden />
@@ -34,6 +35,18 @@
       <label for="search-input">查找课件文字</label>
       <div class="search-line"><input type="search" id="search-input" placeholder="输入关键词，搜索全部页面…" autocomplete="off" /><button id="search-go" class="soft-button">查找</button></div>
       <div id="search-results" class="search-results muted">PDF 加载后支持全文搜索；PPTX 可查看幻灯片。</div>
+    </section>
+
+    <section class="vision-panel glass hidden" id="vision-panel" aria-label="图像链路盲测">
+      <div class="vision-head"><div><b>VISUAL RECEIPT</b><span>真实像素传输盲测 · 不发送答案文字</span></div><button id="close-vision-test" aria-label="关闭盲测">×</button></div>
+      <canvas id="vision-canvas" aria-label="仅以图片显示内容的视觉盲测页面"></canvas>
+      <p id="vision-status" class="vision-status" role="status" aria-live="polite">点击重新生成，然后测试当前 Chat 是否能接收真正的图片。</p>
+      <div class="vision-actions">
+        <button id="regenerate-vision" class="soft-button">重新生成</button>
+        <button id="download-vision" class="soft-button">导出 PNG</button>
+        <button id="send-vision" class="soft-button vision-primary">发往当前 Chat 验收 ↗</button>
+      </div>
+      <p class="vision-disclaimer">上传成功 ≠ 模型看见像素。必须由聊天回答图上的 KEY、形状和四格颜色才能验收通过。</p>
     </section>
 
     <section class="reading-grid" id="reading-grid">
