@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Public Roseglass: guarded anonymous Netlify PREVIEW only. Never deploy to production.
+# Public Roseglass: guarded AUTHENTICATED Netlify DRAFT only. Never deploy to production.
 set -Eeuo pipefail
 cd "$(dirname "$0")/.."
 
@@ -32,9 +32,11 @@ echo '=== Build public-only files ==='
 node scripts/build-public.mjs
 
 echo
-echo 'You are about to create a PUBLIC, temporary Netlify draft URL.'
+echo 'Netlify Functions require an authenticated Netlify account (Free is supported).'
+echo 'Before continuing, log in on YOUR Mac with: npx --yes netlify-cli@latest login'
+echo 'You are about to deploy a PUBLIC Netlify draft with working AI Functions.'
 echo 'No Plus plugin, no GitHub Actions, no author-paid model quota, no production deploy.'
-echo 'Netlify anonymous previews must be claimed within one hour or will be removed.'
+echo 'Account is required: anonymous deploy cannot provide functioning API backend.'
 read -r -p 'Create this public preview now? Type YES to proceed: ' ACK
 if [[ "$ACK" != "YES" ]]; then
   echo 'Canceled without contacting Netlify.'
@@ -44,10 +46,9 @@ fi
 # Avoid passing accidental owner AI tokens to the deployment CLI.
 unset OPENAI_API_KEY DEEPSEEK_API_KEY DASHSCOPE_API_KEY MOONSHOT_API_KEY CLOUDFLARE_API_TOKEN RG_TOKEN || true
 
-echo '=== Deploy temporary DRAFT only (requires network, may use free Netlify allowances) ==='
+echo '=== Deploy DRAFT with functions (requires Netlify login + network + free credits) ==='
 npx --yes netlify-cli@latest deploy \
-  --allow-anonymous \
   --no-build \
   --dir dist-public \
   --functions netlify/functions
-echo 'Check the returned URL and /api/health before claiming or publishing.'
+echo 'Check the returned DRAFT URL and /api/health before any production deployment.'
