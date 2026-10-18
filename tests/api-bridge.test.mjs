@@ -5,6 +5,7 @@ import { validateChat, invokeModel, startServer } from '../local-api/server.mjs'
 const example={provider:'ollama',model:'llava',messages:[{role:'user',content:'解释公式'}]};
 test('no key required for local Ollama; cloud keys required',()=>{
   assert.equal(validateChat(example).provider.needsKey,false);
+  assert.throws(()=>validateChat({...example,provider:'__proto__'}),/不支持/);
   assert.throws(()=>validateChat({...example,provider:'openai'}),/API Key/);
   assert.throws(()=>validateChat({...example,provider:'deepseek',image:'data:image/png;base64,YQ==',key:'secret1234'}),/图片/);
   assert.throws(()=>validateChat({...example,model:'https://evil.site/?'}),/模型名称/);
