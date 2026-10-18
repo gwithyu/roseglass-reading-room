@@ -55,3 +55,13 @@ test('Netlify project configuration never connects a GitHub build or owner API t
   assert.match(raw,/connect-src 'self'/);
   assert.doesNotMatch(raw,/OPENAI_API_KEY|DEEPSEEK_API_KEY|CLOUDFLARE_API_TOKEN|github-actions/i);
 });
+
+test('preview helper cannot perform accidental production deployment',async()=>{
+  const script=await readFile(new URL('../scripts/preview-netlify.sh',import.meta.url),'utf8');
+  assert.match(script,/node --test/);
+  assert.match(script,/scripts\/build-public\.mjs/);
+  assert.match(script,/read -r -p .*YES/);
+  assert.match(script,/--allow-anonymous/);
+  assert.match(script,/--no-build/);
+  assert.doesNotMatch(script,/(?:^|[\s])--prod(?:\s|$)/m);
+});
