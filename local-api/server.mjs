@@ -15,7 +15,7 @@ export const PROVIDERS = Object.freeze({
 
 export function validateChat(input) {
   if (!input || typeof input !== 'object' || Array.isArray(input)) throw new Error('请求格式无效');
-  const provider = PROVIDERS[input.provider];
+  const provider = Object.hasOwn(PROVIDERS,input.provider) ? PROVIDERS[input.provider] : null;
   if (!provider) throw new Error('不支持的 AI 服务商');
   const model = typeof input.model === 'string' ? input.model.trim() : '';
   if (!/^[a-zA-Z0-9][a-zA-Z0-9._:/-]{0,95}$/.test(model)) throw new Error('模型名称无效');
