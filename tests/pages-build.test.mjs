@@ -27,6 +27,8 @@ test('hosted BYOK bundle contains no remote PPTX module or private server code',
   assert.match(html,/id="toggle-vision-test" class="tool-button hidden"/);
   assert.match(app,/id="send-full" class="bottom-button secondary hidden"/);
   assert.match(app,/独立 PDF 共读 · 连接自己的 AI API · 无需 ChatGPT Plus/);
+  assert.match(app,/document\.dispatchEvent\(new Event\('roseglass:document-changed'\)\)/,'successful PDF changes must invalidate stale AI sessions');
+  assert.match(app,/getActiveDocumentKey:\(\)=>state\.fileKey/,'AI must compare response with active PDF identity');
   for(const path of ['LICENSE','THIRD_PARTY_NOTICES.md','mcp-reader/worker/vendor/pdf.min.mjs','mcp-reader/worker/vendor/pdf.worker.min.mjs']){
     assert.ok((await stat(resolve(dist,path))).isFile(),path);
   }
