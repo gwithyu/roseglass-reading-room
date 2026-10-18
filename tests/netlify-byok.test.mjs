@@ -2,7 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import chat,{config as chatConfig} from '../netlify/functions/chat.mjs';
 import health,{config as healthConfig} from '../netlify/functions/health.mjs';
-import {readFile} from 'node:fs/promises';
+import {readFile,mkdtemp,writeFile,rm} from 'node:fs/promises';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
+import {spawnSync} from 'node:child_process';
 
 test('Netlify function endpoints map to the exact public Roseglass API paths',async()=>{
   assert.equal(chatConfig.path,'/api/chat');
@@ -67,4 +70,27 @@ test('preview helper cannot perform accidental production deployment',async()=>{
   assert.match(script,/functions:build --src netlify\/functions --functions/);
   assert.ok(script.indexOf('functions:build')<script.indexOf('netlify-cli@latest deploy'),'netlify bundling must happen before deploy');
   assert.doesNotMatch(script,/(?:^|[\s])--prod(?:\s|$)/m);
+});
+
+test('Netlify preflight rejects partial API bundles and accepts both function outputs',async()=>{
+  const script=await readFile(new URL('../scripts/preview-netlify.sh',import.meta.url),'utf8');
+  const loop=script.match(/for fn in chat health; do[\\s\\S]*?\\ndone/);
+  assert.ok(loop,'both required API routes must be checked');
+  const dir=await mkdtemp(join(tmpdir(),'roseglass-bundle-gate-'));
+  const execute=()=>spawnSync('bash',['-c',loop[0]],{
+    encoding:'utf8',env:{...process.env,FN_CHECK_DIR:dir}
+  });
+  try{
+    await writeFile(join(dir,'chat.zip'),'fixture');
+    let attempt=execute();
+    assert.notEqual(attempt.status,0,'missing health bundle must stop deployment');
+    await writeFile(join(dir,'health.zip'),'fixture');
+    attempt=execute();
+    assert.equal(attempt.status,0,attempt.stderr||'valid pair should pass');
+    await rm(join(dir,'chat.zip'));
+    attempt=execute();
+    assert.notEqual(attempt.status,0,'missing chat bundle must stop deployment');
+  }finally{
+    await rm(dir,{recursive:true,force:true});
+  }
 });
