@@ -12,6 +12,8 @@ test('hosted BYOK bundle contains no remote PPTX module or private server code',
   const dist=resolve(root,'dist-public');
   const app=await readFile(resolve(dist,'src/app.js'),'utf8');
   const html=await readFile(resolve(dist,'index.html'),'utf8');
+  const headers=await readFile(resolve(dist,'_headers'),'utf8');
+  assert.match(headers,/Content-Security-Policy: default-src 'self'; script-src 'self'; connect-src 'self';/);
   assert.doesNotMatch(app,/https:\/\/esm\.sh\//);
   assert.doesNotMatch(app,/https:\/\/cdn\.jsdelivr\.net\//);
   assert.match(app,/暂时只支持 PDF/);
