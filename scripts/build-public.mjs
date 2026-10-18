@@ -26,6 +26,14 @@ let app=await readFile(appFile,'utf8');
 const remote="const {PptxRenderer} = await import('https://esm.sh/pptx-browser@4.1.5?bundle');";
 if(!app.includes(remote))throw Error('PPTX dependency changed; re-audit before publishing');
 app=app.replace(remote,"throw new Error('公共 API 版暂时只支持 PDF。请将 PPTX 导出为 PDF，以保护个人 API Key。');");
+
+// Disable PDF.js dynamic evaluation on hosted BYOK pages. Even with a patched
+// bundled PDF.js, do not let an untrusted uploaded PDF share an eval capability
+// with the origin that also accepts a visitor's personal API Key.
+const pdfOpen='pdfjs.getDocument({data:new Uint8Array(buffer.slice(0))}).promise';
+if(!app.includes(pdfOpen))throw Error('PDF.js open path changed: review eval safety');
+app=app.replace(pdfOpen,'pdfjs.getDocument({data:new Uint8Array(buffer.slice(0)),isEvalSupported:false}).promise');
+
 if(app.includes('https://esm.sh/')||app.includes('https://cdn.jsdelivr.net/'))throw Error('Unaudited external executable dependency detected');
 
 const legacyFullChatButton='id="send-full" class="bottom-button secondary"';
