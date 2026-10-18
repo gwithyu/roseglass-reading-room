@@ -51,5 +51,7 @@ test('Netlify project configuration never connects a GitHub build or owner API t
   const raw=await readFile(new URL('../netlify.toml',import.meta.url),'utf8');
   assert.match(raw,/publish = "dist-public"/);
   assert.match(raw,/functions = "netlify\/functions"/);
+  assert.match(raw,/Content-Security-Policy/);
+  assert.match(raw,/connect-src 'self'/);
   assert.doesNotMatch(raw,/OPENAI_API_KEY|DEEPSEEK_API_KEY|CLOUDFLARE_API_TOKEN|github-actions/i);
 });
