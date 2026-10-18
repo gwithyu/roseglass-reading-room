@@ -38,11 +38,16 @@ echo '=== Bundle Netlify API Functions locally before asking to deploy ==='
 FN_CHECK_DIR="$(mktemp -d "${TMPDIR:-/tmp}/roseglass-functions-preflight.XXXXXX")"
 trap 'rm -rf "$FN_CHECK_DIR"' EXIT
 npx --yes netlify-cli@latest functions:build --src netlify/functions --functions "$FN_CHECK_DIR"
-if [[ -z "$(find "$FN_CHECK_DIR" -type f -print -quit)" ]]; then
-  echo 'Netlify produced no Function build artifacts; refusing to deploy.' >&2
-  exit 1
-fi
-echo 'Local Netlify Function packaging passed.'
+# Both public routes must have runnable build artifacts. A successful CLI exit
+# with only one Function would leave the reading room partly broken.
+for fn in chat health; do
+  artifact="$(find "$FN_CHECK_DIR" -type f \( -name "$fn.zip" -o -name "$fn.mjs" -o -name "$fn.js" -o -path "*/$fn/*" \) -print -quit)"
+  if [[ -z "$artifact" ]]; then
+    echo "Netlify Function '$fn' was not bundled; refusing to deploy." >&2
+    exit 1
+  fi
+done
+echo 'Both Netlify API Functions (chat + health) packaged successfully.'
 
 echo
 echo 'Netlify Functions require an authenticated Netlify account (Free is supported).'
