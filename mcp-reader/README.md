@@ -1,6 +1,6 @@
 # Roseglass MCP Reader 1.0.0
 
-Browser-local PDF co-reading UI and a self-contained MCP Worker. This subdirectory adds a reusable MCP implementation; the original standalone PDF/PPTX app at the repository root remains separate.
+Browser-local PDF co-reading UI and a self-contained MCP Worker. **Original Roseglass code is restricted to unmodified private personal non-commercial use, with no derivatives or redistribution (see ../LICENSE).** This subdirectory provides an MCP implementation for permitted personal use; the original standalone PDF/PPTX app at the repository root remains separate.
 
 ## Features
 
@@ -24,7 +24,7 @@ npm test
 npm run validate
 ```
 
-Output: `dist/server/index.js`, a Worker module exposing `/mcp`. Replace `YOUR_PROJECT_ID` in `.openai/hosting.json` for your own Sites project, or adapt deployment metadata to your own Worker host. Do not reuse another installation's project ID, plugin identity or credentials.
+Output: `dist/server/index.js`, a Worker module exposing `/mcp`. For an unmodified private installation only, set your own `YOUR_PROJECT_ID` in `.openai/hosting.json` or configure your private host endpoint. These installation-only settings do not authorize modifications to the application code or functionality. Do not reuse another installation's project ID, plugin identity or credentials.
 
 Register `/mcp` and its declared MCP UI resource using your host's supported app workflow. Merely opening the website does not attach it to ChatGPT. Host capabilities and account access vary; this code does not guarantee availability on free ChatGPT accounts and does not pay for an AI API.
 
@@ -38,4 +38,4 @@ The current self-contained Worker script is about 7.2 MiB. Actual host resource-
 
 ## Licenses
 
-Application code follows the repository MIT license. Bundled PDF.js and Tesseract core retain their Apache-2.0 notices under `worker/vendor/LICENSE` and `worker/ocr/LICENSE`. Model provenance and asset SHA-256 hashes are in `worker/ocr/PROVENANCE.json`; data packages declare MIT and upstream Tesseract language models use Apache-2.0. Keep those notices when redistributing. Test images are generated synthetic text examples.
+Original Roseglass application code follows the repository's [personal non-commercial, no-derivatives license](../LICENSE); modification, redistribution, public/multi-user hosting, and commercial use require separate written permission. Validly obtained older MIT-licensed copies keep their historical MIT permissions. Bundled PDF.js and Tesseract core retain their Apache-2.0 notices under `worker/vendor/LICENSE` and `worker/ocr/LICENSE`. Model provenance and asset SHA-256 hashes are in `worker/ocr/PROVENANCE.json`; data packages declare MIT and upstream Tesseract language models use Apache-2.0. Keep those notices when redistributing. Test images are generated synthetic text examples.
