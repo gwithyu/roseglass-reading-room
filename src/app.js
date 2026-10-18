@@ -141,9 +141,12 @@ async function idForFile(buffer) {
 }
 async function pdfLib() {
   if (!state.pdfjs) {
-    const base = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@5.4.296/build/';
-    state.pdfjs = await import(base+'pdf.mjs');
-    state.pdfjs.GlobalWorkerOptions.workerSrc = base+'pdf.worker.mjs';
+    // Reuse the already distributed, license-preserved PDF.js 5.6.205 assets.
+    // No foreign CDN is needed to open PDFs on the public standalone reader.
+    const localPdf = new URL('../mcp-reader/worker/vendor/pdf.min.mjs', import.meta.url);
+    const localWorker = new URL('../mcp-reader/worker/vendor/pdf.worker.min.mjs', import.meta.url);
+    state.pdfjs = await import(localPdf.href);
+    state.pdfjs.GlobalWorkerOptions.workerSrc = localWorker.href;
   }
   return state.pdfjs;
 }
