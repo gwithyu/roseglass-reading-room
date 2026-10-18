@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {initAiChat} from '../src/ai-chat.mjs';
 
-function fakeBrowser(mode){
+function fakeBrowser(mode,{imageData=null}={}){
   class Node{
     constructor(){
       this.handlers={};this.value='';this.children=[];this.checked=false;this.disabled=false;
@@ -27,7 +27,7 @@ function fakeBrowser(mode){
     if(url==='/api/chat')return {ok:true,json:async()=>({answer:'模拟回答'})};
     throw Error('unexpected route');
   };
-  initAiChat({getContext:async()=>({documentKey:'lecture1',text:'第一页公式',image:null})});
+  initAiChat({getContext:async()=>({documentKey:'lecture1',text:'第一页公式',image:imageData})});
   return {nodes,calls};
 }
 test('local mode never includes API keys and does not call AI on opening',async(t)=>{
@@ -64,4 +64,20 @@ test('hosted Pages BYOK mode sends user key only after explicit consent and subm
   assert.equal(calls[1].options.cache,'no-store');
   await nodes['close-ai'].trigger('click');
   assert.equal(nodes['ai-api-key'].value,'','secret cleared when panel closes');
+});
+
+test('hosted UI rejects oversized PNG before sending user API key',async(t)=>{
+  const doc=globalThis.document,fetchBefore=globalThis.fetch;
+  t.after(()=>{globalThis.document=doc;globalThis.fetch=fetchBefore;});
+  const {nodes,calls}=fakeBrowser('pages-byok',{imageData:'data:image/png;base64,'+'A'.repeat(4_300_002)});
+  await nodes['open-ai'].trigger('click');
+  nodes['ai-provider'].value='openai';
+  await nodes['ai-provider'].trigger('change');
+  nodes['ai-image'].checked=true;
+  nodes['ai-cloud-consent'].checked=true;
+  nodes['ai-api-key'].value='test-own-api-key-123';
+  nodes['ai-question'].value='解释这张图';
+  await nodes['ai-send'].trigger('click');
+  assert.deepEqual(calls.map(x=>x.url),['/api/health']);
+  assert.match(nodes['ai-status'].textContent,/图像超过/);
 });
