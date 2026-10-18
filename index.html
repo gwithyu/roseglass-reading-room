@@ -109,10 +109,30 @@
       <div class="bottom-actions">
         <button id="copy-context" class="bottom-button secondary">复制当前页内容</button>
         <button id="export-image" class="bottom-button secondary" title="下载包含点击标记的本页图像">导出本页 PNG</button>
+        <button id="open-ai" class="bottom-button secondary" title="本地零托管 BYOK AI 共读">本机 AI / API ↗</button>
         <button id="send-chat" class="bottom-button primary" title="尝试发送页面图像和文字，若宿主不支持则导出 PNG">图文共读 <span>↗</span></button>
       </div>
     </footer>
   </main>
+  <aside id="ai-panel" class="ai-panel glass hidden" aria-hidden="true" aria-label="独立 AI 共读" role="dialog">
+    <header class="ai-head"><div><strong>ROSEGLASS / AI</strong><small>公开版 · 本机 API 模式</small></div><button id="close-ai" class="icon-button" aria-label="关闭 AI 面板">×</button></header>
+    <div class="ai-config">
+      <label for="ai-provider">服务方式</label>
+      <select id="ai-provider" aria-label="模型服务商">
+        <option value="ollama">Ollama · 本地运行，无 API 计费</option>
+        <option value="openai">OpenAI · 使用自己的付费额度</option>
+        <option value="deepseek">DeepSeek · 使用自己的付费额度</option>
+      </select>
+      <label for="ai-model">模型名称</label><input id="ai-model" type="text" maxlength="96" autocomplete="off" spellcheck="false" />
+      <label class="ai-check"><input type="checkbox" id="ai-image" /> 本次发送当前页真实图片（可能增加个人 API 成本）</label>
+    </div>
+    <div id="ai-messages" class="ai-messages" aria-live="polite" aria-label="AI 共读聊天记录"></div>
+    <label class="visually-hidden" for="ai-question">向 AI 提问</label>
+    <textarea id="ai-question" maxlength="2800" rows="3" placeholder="这页的哪个部分不明白？可以继续追问…" aria-label="向 AI 提问"></textarea>
+    <div class="ai-controls"><button id="ai-reset" class="soft-button" type="button">清空临时对话</button><button id="ai-send" class="bottom-button primary" type="button">发送问题 ↗</button></div>
+    <p id="ai-status" class="ai-status" role="status">不共享作者的密钥或额度。仅主动发送时才传送当前页内容。</p>
+    <p class="ai-disclaimer">须通过本机 Node 服务打开；云端 API Key 只能在你自己的本机环境变量中配置，不能贴到 GitHub。云端 API 可能由服务商单独收费。</p>
+  </aside>
   <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
   <script type="module" src="./src/app.js"></script>
 </body>
