@@ -109,6 +109,14 @@
       <div class="bottom-actions">
         <button id="copy-context" class="bottom-button secondary">复制当前页内容</button>
         <button id="export-image" class="bottom-button secondary" title="下载包含点击标记的本页图像">导出本页 PNG</button>
+        <label class="visually-hidden" for="handoff-provider">选择要打开的聊天 AI</label>
+        <select id="handoff-provider" class="handoff-select" aria-label="选择自己的 AI">
+          <option value="chatgpt">ChatGPT</option>
+          <option value="deepseek">DeepSeek</option>
+          <option value="kimi">Kimi</option>
+          <option value="doubao">豆包</option>
+        </select>
+        <button id="handoff-ai" class="bottom-button secondary" title="下载本页图片、复制讲解上下文，并打开选中的 AI 网站">交给我的 AI ↗</button>
         <button id="open-ai" class="bottom-button secondary" title="本地零托管 BYOK AI 共读">本机 AI / API ↗</button>
         <button id="send-chat" class="bottom-button primary" title="尝试发送页面图像和文字，若宿主不支持则导出 PNG">图文共读 <span>↗</span></button>
       </div>
