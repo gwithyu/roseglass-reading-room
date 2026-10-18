@@ -80,7 +80,12 @@ export function makeHandler({port=8787,fetchImpl=fetch,root=ROOT,keys={openai:pr
       const path=resolve(root,`.${pathname === '/'?'/index.html':pathname}`);
       if (path !== root && !path.startsWith(root+sep)) return json(res,403,{error:'禁止访问'});
       const relative=path.slice(root.length).split(sep).filter(Boolean);
-      if (relative.some(x=>x.startsWith('.')) || relative[0]==='local-api' || relative[0]==='tests' || relative[0]==='mcp-reader') return json(res,404,{error:'找不到文件'});
+      // The standalone PDF reader uses two immutable, already-public PDF.js files.
+      // Do not expose the other MCP reader internals through the local web server.
+      const assetAllowed = pathname === '/mcp-reader/worker/vendor/pdf.min.mjs' ||
+        pathname === '/mcp-reader/worker/vendor/pdf.worker.min.mjs';
+      if (relative.some(x=>x.startsWith('.')) || relative[0]==='local-api' || relative[0]==='tests' ||
+          (relative[0]==='mcp-reader' && !assetAllowed)) return json(res,404,{error:'找不到文件'});
       if (!(extname(path) in TYPES)) return json(res,404,{error:'找不到文件'});
       const info=await stat(path);
       if (!info.isFile()) return json(res,404,{error:'找不到文件'});
