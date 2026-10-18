@@ -57,7 +57,8 @@ export function initAiChat({getContext,notice=()=>{}}){
   open.addEventListener('click',async()=>{
     panel.classList.remove('hidden');panel.setAttribute('aria-hidden','false');
     status.textContent='正在检查 API 接口…';
-    const healthSession=++sessionVersion;
+    invalidateRequest(); // opening another panel session also cancels any older request
+    const healthSession=sessionVersion;
     const checked=await availability();
     if(healthSession!==sessionVersion)return; // panel closed or reopened during health check
     mode=checked;
