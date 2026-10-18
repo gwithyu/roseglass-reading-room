@@ -78,3 +78,12 @@
 .ai-panel textarea{resize:vertical;min-height:70px;max-height:145px}.ai-controls{display:flex;gap:8px;justify-content:space-between;align-items:center}
 .ai-controls .bottom-button{height:36px}.ai-status,.ai-disclaimer{margin:0;color:var(--sub);font-size:11px;line-height:1.5}.ai-status{color:#f3d9d4}.ai-disclaimer{opacity:.85}
 @media(max-width:700px){.ai-panel{inset:70px 9px 66px;width:auto;padding:12px;border-radius:16px}.ai-messages{min-height:60px}}
+
+
+/* Temporary personal key entry: hidden on local bridge, no browser storage. */
+.ai-key-wrap{display:flex;flex-direction:column;gap:6px;padding:9px 10px;border:1px solid var(--edge);border-radius:12px;background:rgba(0,0,0,.12)}
+.ai-key-wrap label{font-size:11px;color:#f6d4d1;font-weight:650}
+.ai-key-wrap input{width:100%;min-width:0;background:rgba(255,255,255,.08);border:1px solid var(--edge);border-radius:9px;color:var(--text);padding:9px 10px;font:inherit;font-size:12px}
+.ai-key-note{font-size:10px;line-height:1.45;color:var(--sub);margin:0}
+.ai-panel{overflow-y:auto}
+.ai-messages{flex:1 1 120px}
