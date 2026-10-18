@@ -22,6 +22,7 @@
       </div>
       <div class="toolbar-actions">
         <button id="open-file" class="tool-button prominent" title="打开 PDF 或 PPTX" aria-label="打开课件">＋ <span>打开课件</span></button>
+        <button id="invite-create" class="tool-button" type="button" title="生成新的 Roseglass 分享链接" aria-label="生成分享链接">⌁</button>
         <button id="toggle-thumbs" class="tool-button" title="显示或隐藏缩略图" aria-label="切换缩略图">▦</button>
         <button id="toggle-search" class="tool-button" title="全文搜索" aria-label="全文搜索">⌕</button>
         <button id="toggle-bookmarks" class="tool-button" title="书签和重点笔记" aria-label="查看书签和重点笔记">♧</button>
@@ -49,6 +50,15 @@
       <p class="vision-disclaimer">上传成功 ≠ 模型看见像素。必须由聊天回答图上的 KEY、形状和四格颜色才能验收通过。</p>
     </section>
 
+    <section id="invite-intro" class="invite-intro glass hidden" role="status"></section>
+    <aside id="invite-panel" class="invite-panel glass hidden" role="dialog" aria-label="生成 Roseglass 分享链接" aria-hidden="true">
+      <div class="invite-head"><div><strong>ROSEGLASS / SHARE</strong><span>固定入口 · 每次生成新链接</span></div><button id="invite-close" class="icon-button" type="button" aria-label="关闭分享面板">×</button></div>
+      <p class="invite-description">把链接发给 Jessica 或其他人。每个人打开的是自己的阅读器，自己上传课件、使用自己的 API；不会传送你的文件或密钥。</p>
+      <label class="invite-label" for="invite-url">本次生成的分享网址</label>
+      <input id="invite-url" class="invite-url" type="text" readonly autocomplete="off" aria-label="本次生成的分享链接" placeholder="等待生成…" />
+      <div class="invite-actions"><button id="invite-regenerate" type="button" class="soft-button">重新生成</button><button id="invite-copy" type="button" class="bottom-button primary" disabled>复制链接</button></div>
+      <p id="invite-status" class="invite-status" role="status">不同链接不会自动共享课件或创建实时同步房间。</p>
+    </aside>
     <section class="reading-grid" id="reading-grid">
       <aside id="thumbs" class="thumbs glass hidden" aria-label="页面缩略图"><div class="panel-heading">PAGES <span id="thumb-count">—</span></div><div id="thumb-list" class="thumb-list"></div></aside>
       <section class="viewer glass" aria-label="课件阅读区">
@@ -109,10 +119,34 @@
       <div class="bottom-actions">
         <button id="copy-context" class="bottom-button secondary">复制当前页内容</button>
         <button id="export-image" class="bottom-button secondary" title="下载包含点击标记的本页图像">导出本页 PNG</button>
+        <button id="open-ai" class="bottom-button secondary" title="连接自己的 AI API，网页部署时可直接填写个人 Key">连接我的 AI API ↗</button>
         <button id="send-chat" class="bottom-button primary" title="尝试发送页面图像和文字，若宿主不支持则导出 PNG">图文共读 <span>↗</span></button>
       </div>
     </footer>
   </main>
+  <aside id="ai-panel" class="ai-panel glass hidden" aria-hidden="true" aria-label="独立 AI 共读" role="dialog">
+    <header class="ai-head"><div><strong>ROSEGLASS / AI</strong><small>公开版 · 个人 API 共读</small></div><button id="close-ai" class="icon-button" aria-label="关闭 AI 面板">×</button></header>
+    <div class="ai-config">
+      <label for="ai-provider">服务方式</label>
+      <select id="ai-provider" aria-label="模型服务商">
+        <option value="ollama">Ollama · 本地运行，无 API 计费</option>
+        <option value="openai">OpenAI · 使用自己的付费额度</option>
+        <option value="deepseek">DeepSeek · 个人 API</option>
+        <option value="qwen">通义千问 Qwen · 个人 API</option>
+        <option value="kimi">Kimi · 个人 API</option>
+      </select>
+      <div id="ai-key-wrap" class="ai-key-wrap hidden"><label for="ai-api-key">你的 API Key（仅当前页面临时使用）</label><input id="ai-api-key" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="只在这里输入自己的 Key；切勿分享" aria-label="个人 API Key" /><p class="ai-key-note">密钥会通过本站 HTTPS 中转给你选择的 AI 服务商。不要在不信任的网址输入 Key。</p></div>
+      <label for="ai-model">模型名称</label><input id="ai-model" type="text" maxlength="96" autocomplete="off" spellcheck="false" />
+      <label class="ai-check"><input type="checkbox" id="ai-cloud-consent" disabled /> 我知道云端 API 可能收费，确认自愿使用自己的额度</label>
+      <label class="ai-check"><input type="checkbox" id="ai-image" /> 本次发送当前页真实图片（可能增加个人 API 成本）</label>
+    </div>
+    <div id="ai-messages" class="ai-messages" aria-live="polite" aria-label="AI 共读聊天记录"></div>
+    <label class="visually-hidden" for="ai-question">向 AI 提问</label>
+    <textarea id="ai-question" maxlength="2800" rows="3" placeholder="这页的哪个部分不明白？可以继续追问…" aria-label="向 AI 提问"></textarea>
+    <div class="ai-controls"><button id="ai-reset" class="soft-button" type="button">清空临时对话</button><button id="ai-send" class="bottom-button primary" type="button">发送问题 ↗</button></div>
+    <p id="ai-status" class="ai-status" role="status">不共享作者的密钥或额度。仅主动发送时才传送当前页内容。</p>
+    <p class="ai-disclaimer">公共网页版可直接填写个人 API Key，不需要 ChatGPT Plus。密钥不写入浏览器长期存储，但请求会经过网站的 Cloudflare 接口；AI 服务商可能收费。仅在可信页面使用。</p>
+  </aside>
   <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
   <script type="module" src="./src/app.js"></script>
 </body>

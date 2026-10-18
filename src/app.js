@@ -5,6 +5,8 @@ import {buildTextChunks} from './segment-text.mjs';
 import {makePageImage,canvasPngBlob,samePageSnapshot,buildVisualPrompt,exportSize} from './visual-packet.mjs';
 import {relayImageToChat} from './chat-image-bridge.mjs';
 import {makeChallenge,paintChallenge,BLIND_PROMPT} from './vision-challenge.mjs';
+import {initAiChat} from './ai-chat.mjs';
+import {initInviteLinks,parseInviteId,scopeDocumentKey} from './invite-links.mjs';
 const $ = (id) => document.getElementById(id);
 const ui = {
   file: $('file-input'), open: $('open-file'), filename: $('filename'), kind: $('file-kind'),
@@ -140,9 +142,12 @@ async function idForFile(buffer) {
 }
 async function pdfLib() {
   if (!state.pdfjs) {
-    const base = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@5.4.296/build/';
-    state.pdfjs = await import(base+'pdf.mjs');
-    state.pdfjs.GlobalWorkerOptions.workerSrc = base+'pdf.worker.mjs';
+    // Reuse the already distributed, license-preserved PDF.js 5.6.205 assets.
+    // No foreign CDN is needed to open PDFs on the public standalone reader.
+    const localPdf = new URL('../mcp-reader/worker/vendor/pdf.min.mjs', import.meta.url);
+    const localWorker = new URL('../mcp-reader/worker/vendor/pdf.worker.min.mjs', import.meta.url);
+    state.pdfjs = await import(localPdf.href);
+    state.pdfjs.GlobalWorkerOptions.workerSrc = localWorker.href;
   }
   return state.pdfjs;
 }
@@ -155,7 +160,7 @@ async function loadFile(file) {
   try {
     const buffer = await file.arrayBuffer();
     if (buffer.byteLength > 250 * 1024 * 1024) throw new Error('文件超过 250 MB 浏览器预览限制');
-    const fileKey = await idForFile(buffer);
+    const fileKey = scopeDocumentKey(await idForFile(buffer),parseInviteId(window.location.hash));
     let nextPdf = null, nextPptx = null, nextText = [], nextCount = 0;
     if (ext==='pdf') {
       const pdfjs = await pdfLib();
@@ -179,6 +184,7 @@ async function loadFile(file) {
     state.file = file; state.fileKey = fileKey; state.pagesText = nextText;
     state.searchIndexPromise = null;
     switchDoc(ext, name, nextCount);
+    document.dispatchEvent(new Event('roseglass:document-changed'));
     try{previousPptx?.destroy?.();}catch{}
     if(previousPdf){try{await previousPdf.destroy();}catch{}}
     setStatus(state.resumed ? `已恢复阅读 · 第 ${state.page+1}/${state.count} 页 · ${state.zoomMode==='custom'?Math.round(state.zoom*100)+'%':state.zoomMode==='fit-width'?'适应宽度':'适应整页'}` : `本地文件 · ${state.count} 页 · 点击页面可标记重点`);
@@ -523,6 +529,28 @@ ui.zoomRange.addEventListener('change',()=>setZoom('custom',Number(ui.zoomRange.
 ui.zoomPreset.addEventListener('change',()=>setZoom(ui.zoomPreset.value));
 $('fullscreen').onclick=async()=>{if(window.openai?.requestDisplayMode){try{await window.openai.requestDisplayMode({mode:'fullscreen'});return;}catch{}}if(!document.fullscreenElement)await document.documentElement.requestFullscreen?.();else await document.exitFullscreen?.();};
 document.addEventListener('keydown',e=>{if(/INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName||'') || document.activeElement?.isContentEditable)return;if(e.key==='ArrowRight'||e.key==='PageDown')go(state.page+1);if(e.key==='ArrowLeft'||e.key==='PageUp')go(state.page-1);if((e.metaKey||e.ctrlKey)&&e.key==='f'){e.preventDefault();ui.searchPanel.classList.remove('hidden');ui.search.focus();}});
+initAiChat({notice,getActiveDocumentKey:()=>state.fileKey,getContext:async({includeImage})=>{
+  if(state.kind==='demo' || !state.fileKey)throw new Error('请先打开一份 PDF 或 PPTX');
+  const documentKey=state.fileKey, page=state.page, documentRef=state.document, pptRef=state.pptx;
+  const extracted=await pageText(page);
+  const unchanged=()=>documentKey===state.fileKey && page===state.page && documentRef===state.document && pptRef===state.pptx;
+  if(!unchanged())throw new Error('课件已切换，请重新发送');
+  const text=createPacket(extracted,page);
+  let image=null;
+  if(includeImage){
+    const visual=await captureVisualPage();
+    if(!unchanged() || visual.snapshot.page!==page)throw new Error('课件已切换，取消发送旧图像');
+    image=await new Promise((resolve,reject)=>{
+      const reader=new FileReader();
+      reader.onload=()=>resolve(String(reader.result));
+      reader.onerror=()=>reject(new Error('图片读取失败'));
+      reader.readAsDataURL(visual.blob);
+    });
+    if(!unchanged())throw new Error('课件已切换，取消发送旧图像');
+  }
+  return {documentKey,text,image};
+}});
+initInviteLinks();
 restoreZoom();updateZoomUI();renderDemo();
 let resizeTimer;new ResizeObserver(()=>{clearTimeout(resizeTimer);resizeTimer=setTimeout(()=>render(),110);}).observe(ui.viewport);
 let dragDepth=0;window.addEventListener('dragenter',e=>{if(!e.dataTransfer?.types?.includes('Files'))return;e.preventDefault();dragDepth++;$('drop-hint').classList.remove('hidden');});window.addEventListener('dragover',e=>{if(e.dataTransfer?.types?.includes('Files'))e.preventDefault();});window.addEventListener('dragleave',()=>{dragDepth--;if(dragDepth<=0){dragDepth=0;$('drop-hint').classList.add('hidden');}});window.addEventListener('drop',e=>{e.preventDefault();dragDepth=0;$('drop-hint').classList.add('hidden');loadFile(e.dataTransfer?.files?.[0]);});
