@@ -1,0 +1,17 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "buildCommand": "bash scripts/build-public-host.sh",
+  "outputDirectory": "public",
+  "rewrites": [
+    {
+      "source": "/mcp",
+      "destination": "/api/mcp"
+    }
+  ],
+  "functions": {
+    "api/mcp.mjs": {
+      "maxDuration": 60
+    }
+  }
+}
