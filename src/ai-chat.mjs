@@ -56,7 +56,7 @@ export function initAiChat({getContext,notice=()=>{}}){
     if(mode==='pages-byok'&&provider.value==='ollama')provider.value='deepseek';
     if(mode==='local-only'&&PRESETS[provider.value]?.pagesOnly)provider.value='ollama';
     updateProvider();
-    if(!mode)status.textContent='未找到 API 接口；若是本地安装，请启动 node local-api/server.mjs，公开版需要部署 Pages Functions。';
+    if(!mode)status.textContent='未找到 API 接口；若是本地安装，请启动 node local-api/server.mjs，公开版需要部署带 API Functions 的网站。';
     question.focus();
   });
   close.addEventListener('click',()=>{
@@ -76,7 +76,7 @@ export function initAiChat({getContext,notice=()=>{}}){
     if(!prompt)return notice('先写下你想问的内容');
     if(!mode){status.textContent='API 接口尚未连接。';return;}
     if(mode==='pages-byok'&&provider.value==='ollama'){status.textContent='公共网页不能访问你的本机 Ollama；请选择云端 API。';return;}
-    if(mode==='local-only'&&PRESETS[provider.value]?.pagesOnly){status.textContent='此服务商需要公开 Pages API 模式。';return;}
+    if(mode==='local-only'&&PRESETS[provider.value]?.pagesOnly){status.textContent='此服务商需要带 API 接口的公开托管版。';return;}
     if(provider.value!=='ollama'&&!cloudConsent.checked){
       status.textContent='请先勾选确认：使用自己的 AI API 可能产生费用。';return;
     }
@@ -87,6 +87,7 @@ export function initAiChat({getContext,notice=()=>{}}){
     working=true;send.disabled=true;status.textContent='正在整理当前页…';
     try{
       const page=await getContext({includeImage:image.checked});
+      if(mode==='pages-byok'&&page.image&&page.image.length>4_300_000)throw new Error('当前页图像超过公开网站的大小限制。请取消「发送图片」后先用文字提问。');
       if(currentDocument!==page.documentKey){clearHistory();currentDocument=page.documentKey;}
       const text=`你是共读助手。只能依据实际收到的课件文字和页面图像分析；看不到就明确说明。\n${page.text.slice(0,16000)}\n\n问题：${prompt}`;
       const messages=[...conversation.slice(-6),{role:'user',content:text}];
