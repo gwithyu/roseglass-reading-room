@@ -68,3 +68,31 @@ python3 -m http.server 8080
 欢迎通过 [Issues](https://github.com/gwithyu/roseglass-reading-room/issues) 提交问题。请说明使用的是哪个版本、浏览器、操作步骤和报错；截图前遮住个人信息，不要提交未经授权的完整课件。**问题反馈不代表获得代码修改、提交衍生版本、再发布或商业使用的许可**。如需超出私人非商业原样使用的授权，请先联系版权人取得书面许可。
 
 Roseglass 原创代码采用 [仅限个人非商业使用、禁止修改与衍生作品的限制性许可](LICENSE)。历史 MIT 授权不追溯撤销。PDF.js、Tesseract 及语言模型保留各自第三方许可与来源说明，见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
+
+
+## 可选：本机 AI API 共读（无需托管服务）
+
+公开版新增独立的 **本机 API 模式**，不改变原有 ChatGPT 共读、搜索、书签和页面导出。**作者不承担任何 API 调用或托管费用，项目没有共享的 AI 额度，也没有公共 AI 后端。**
+
+需要 **Node.js 22+**，在仓库根目录运行：
+
+```bash
+node local-api/server.mjs
+```
+
+然后在本机打开 **http://127.0.0.1:8787**，选择 PDF/PPTX，点击「本机 AI / API ↗」。页面继续在浏览器本地解析，只有点击「发送问题」才会提交当前页文本；真实页图必须另外勾选才发送。
+
+- **不产生云端 AI API 费用的选择：** 用户自行安装并运行 Ollama、下载兼容视觉模型（默认 `llava`，可用 `ollama pull llava`），本机 API 代理会请求 `127.0.0.1:11434`。下载模型会使用磁盘与设备资源。
+- **使用自己的云端额度：** 使用者在**自己电脑的终端环境变量**中配置 `OPENAI_API_KEY` 或 `DEEPSEEK_API_KEY`，然后启动本机服务。OpenAI / DeepSeek 可能按各自政策收费；此选项不是免费额度承诺。密钥不会写入网页、仓库或浏览器存储，也不要提交到 GitHub。
+- 目前 DeepSeek 连接为文字模式，不支持发送页图；OpenAI、Ollama 的实际视觉能力取决于所选模型。
+- 本机服务只绑定 `127.0.0.1`，不接受跨站请求，不提供公共共享代理。若只打开 GitHub 静态版或使用 `python3 -m http.server`，本机 AI 按钮会提示启动 Node 服务；原有阅读器继续可用。
+- 临时 AI 对话只在当前标签页内存中维护，不上传到作者服务器。云端模型处理已明确发送的内容时，遵循用户选择的 AI 提供商的条款与隐私政策。
+
+开发和验收使用本机模拟服务，不需要 GitHub Actions 或真实付费 API：
+
+```bash
+node --test tests/api-bridge.test.mjs
+```
+
+此功能只属于 **公开版的独立网页版**。它不使用、不连接也不包含作者的私人 ChatGPT Site、g-mind、私人记忆或密钥。
+
