@@ -1,6 +1,6 @@
 # Release notes
 
-## Licensing update · 2026-10-18
+## v1.0.1 · 2026-10-18 — Personal-only licensing and release safeguards
 
 - 公共仓库从 MIT 转为 **仅限私人非商业使用、禁止修改、禁止衍生版本和再分发** 的限制性源码许可；适用于版权人有权许可的 Roseglass 原创内容及本次更新后的获取方式。
 - 仍然允许为私人非商业的原样使用所需的本地构建、安装、配置和备份；第三方依赖遵循各自许可证。
