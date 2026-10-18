@@ -184,6 +184,7 @@ async function loadFile(file) {
     state.file = file; state.fileKey = fileKey; state.pagesText = nextText;
     state.searchIndexPromise = null;
     switchDoc(ext, name, nextCount);
+    document.dispatchEvent(new Event('roseglass:document-changed'));
     try{previousPptx?.destroy?.();}catch{}
     if(previousPdf){try{await previousPdf.destroy();}catch{}}
     setStatus(state.resumed ? `已恢复阅读 · 第 ${state.page+1}/${state.count} 页 · ${state.zoomMode==='custom'?Math.round(state.zoom*100)+'%':state.zoomMode==='fit-width'?'适应宽度':'适应整页'}` : `本地文件 · ${state.count} 页 · 点击页面可标记重点`);
@@ -528,7 +529,7 @@ ui.zoomRange.addEventListener('change',()=>setZoom('custom',Number(ui.zoomRange.
 ui.zoomPreset.addEventListener('change',()=>setZoom(ui.zoomPreset.value));
 $('fullscreen').onclick=async()=>{if(window.openai?.requestDisplayMode){try{await window.openai.requestDisplayMode({mode:'fullscreen'});return;}catch{}}if(!document.fullscreenElement)await document.documentElement.requestFullscreen?.();else await document.exitFullscreen?.();};
 document.addEventListener('keydown',e=>{if(/INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName||'') || document.activeElement?.isContentEditable)return;if(e.key==='ArrowRight'||e.key==='PageDown')go(state.page+1);if(e.key==='ArrowLeft'||e.key==='PageUp')go(state.page-1);if((e.metaKey||e.ctrlKey)&&e.key==='f'){e.preventDefault();ui.searchPanel.classList.remove('hidden');ui.search.focus();}});
-initAiChat({notice,getContext:async({includeImage})=>{
+initAiChat({notice,getActiveDocumentKey:()=>state.fileKey,getContext:async({includeImage})=>{
   if(state.kind==='demo' || !state.fileKey)throw new Error('请先打开一份 PDF 或 PPTX');
   const documentKey=state.fileKey, page=state.page, documentRef=state.document, pptRef=state.pptx;
   const extracted=await pageText(page);
