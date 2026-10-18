@@ -6,7 +6,7 @@ import {makePageImage,canvasPngBlob,samePageSnapshot,buildVisualPrompt,exportSiz
 import {relayImageToChat} from './chat-image-bridge.mjs';
 import {makeChallenge,paintChallenge,BLIND_PROMPT} from './vision-challenge.mjs';
 import {initAiChat} from './ai-chat.mjs';
-import {initInviteLinks} from './invite-links.mjs';
+import {initInviteLinks,parseInviteId,scopeDocumentKey} from './invite-links.mjs';
 const $ = (id) => document.getElementById(id);
 const ui = {
   file: $('file-input'), open: $('open-file'), filename: $('filename'), kind: $('file-kind'),
@@ -160,7 +160,7 @@ async function loadFile(file) {
   try {
     const buffer = await file.arrayBuffer();
     if (buffer.byteLength > 250 * 1024 * 1024) throw new Error('文件超过 250 MB 浏览器预览限制');
-    const fileKey = await idForFile(buffer);
+    const fileKey = scopeDocumentKey(await idForFile(buffer),parseInviteId(window.location.hash));
     let nextPdf = null, nextPptx = null, nextText = [], nextCount = 0;
     if (ext==='pdf') {
       const pdfjs = await pdfLib();
