@@ -3,8 +3,8 @@ const state = { doc: null, pages: [], file: null, digest: "", page: 1, focus: nu
 const bridge = window.ReadingBridge;
 function controls() {
   const busy = state.loading || state.rendering || state.sending;
-  for (const button of byId("readerToolbar").querySelectorAll(".gmind-reading-selection-tools button")) button.disabled = busy || !state.pageReady;
-  const overlay = byId("canvasWrap").querySelector(".gmind-reading-selection-overlay");
+  for (const button of byId("readerToolbar").querySelectorAll(".roseglass-reading-selection-tools button")) button.disabled = busy || !state.pageReady;
+  const overlay = byId("canvasWrap").querySelector(".roseglass-reading-selection-overlay");
   if (overlay) overlay.style.pointerEvents = busy || !state.pageReady ? "none" : "auto";
   byId("jumpPage").disabled = busy || !state.pageReady;
   byId("ocrPage").disabled = busy || !state.pageReady;
@@ -168,7 +168,7 @@ async function renderPage(number, {preserveView = false} = {}) {
     await page.render({ canvasContext: canvas.getContext("2d"), viewport: pixels }).promise;
     if (token !== state.renderToken) return;
     state.pageReady = true;
-    byId("renderDiagnostics").textContent = JSON.stringify({readerVersion:"16.3.1",mode:state.zoomMode,zoom:state.zoom,
+    byId("renderDiagnostics").textContent = JSON.stringify({readerVersion:"1.0.0",mode:state.zoomMode,zoom:state.zoom,
       devicePixelRatio:globalThis.devicePixelRatio || 1,effectiveDpr:dpr,cssWidth:viewport.width,cssHeight:viewport.height,
       bitmapWidth:canvas.width,bitmapHeight:canvas.height,pageRatio:base.width/base.height,
       frameWidth:stage.clientWidth,frameHeight:stage.clientHeight,settingsSource:"versioned-source-defaults"}, null, 2);
@@ -356,14 +356,14 @@ byId("search").addEventListener("input", () => {
   }
 });
 function bookmarkData() {
-  return { format: "gmind-reading-bookmark", version: 1, sha256: state.digest, pages: state.pages.length,
+  return { format: "roseglass-reading-bookmark", version: 1, sha256: state.digest, pages: state.pages.length,
     page: state.page, focus: state.focus, notes: byId("notes").value.slice(0, 8000), question: byId("question").value.slice(0, 8000) };
 }
 async function restoreBookmark(text) {
   if (!state.doc || state.loading || state.rendering || state.sending) throw Error("请先打开课件并等待页面就绪。");
   if (text.length > 40000) throw Error("书签过长。");
   const data = JSON.parse(text);
-  if (data.format !== "gmind-reading-bookmark" || data.version !== 1 || data.sha256 !== state.digest || data.pages !== state.pages.length) throw Error("书签与当前 PDF 不一致；没有恢复。");
+  if (data.format !== "roseglass-reading-bookmark" || data.version !== 1 || data.sha256 !== state.digest || data.pages !== state.pages.length) throw Error("书签与当前 PDF 不一致；没有恢复。");
   if (!Number.isInteger(data.page) || data.page < 1 || data.page > state.pages.length || typeof data.notes !== "string" || data.notes.length > 8000 || typeof data.question !== "string" || data.question.length > 8000) throw Error("书签内容无效。");
   const focus = data.focus;
   if (focus && (![focus.x, focus.y].every(n => Number.isFinite(n) && n >= 0 && n <= 1) || typeof focus.nearbyText !== "string" || focus.nearbyText.length > 8000)) throw Error("书签定位无效。");

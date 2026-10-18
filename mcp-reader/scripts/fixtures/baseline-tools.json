@@ -13,9 +13,9 @@
     },
     "_meta": {
       "ui": {
-        "resourceUri": "ui://gmind-reading-chat/reader-v15.html"
+        "resourceUri": "ui://roseglass-reading-room/reader-v15.html"
       },
-      "openai/outputTemplate": "ui://gmind-reading-chat/reader-v15.html",
+      "openai/outputTemplate": "ui://roseglass-reading-room/reader-v15.html",
       "openai/toolInvocation/invoking": "正在加载共读界面",
       "openai/toolInvocation/invoked": "共读界面资源已提供",
       "openai/ui": {

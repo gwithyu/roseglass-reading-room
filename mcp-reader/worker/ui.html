@@ -114,21 +114,21 @@
     @media(max-width:850px) { .paper { height: auto; } .side { max-height: none; } }
     @media(max-width:540px) { .stage, .pdf-open .stage { max-height: 420px; } }
 /* Selection overlay: coordinates stick to the rendered PDF page, not the outer viewport. */
-.gmind-reading-stage { isolation:isolate; }
-.gmind-reading-selection-tools { display:inline-flex; width:max-content; max-width:100%; flex:0 0 auto; gap:3px; align-items:center; flex-wrap:nowrap; }
-.gmind-reading-selection-tools button { min-height:26px; padding:2px 6px; white-space:nowrap; background:rgba(255,255,255,.72); color:#73535d;
+.roseglass-reading-stage { isolation:isolate; }
+.roseglass-reading-selection-tools { display:inline-flex; width:max-content; max-width:100%; flex:0 0 auto; gap:3px; align-items:center; flex-wrap:nowrap; }
+.roseglass-reading-selection-tools button { min-height:26px; padding:2px 6px; white-space:nowrap; background:rgba(255,255,255,.72); color:#73535d;
   border:1px solid rgba(128,89,98,.26); border-radius:7px; cursor:pointer; font:inherit; font-size:11px; }
-.gmind-reading-selection-tools button[aria-pressed="true"] { background:#a97a81; color:white; border-color:#a97a81; }
-.gmind-reading-selection-tools button:focus-visible { outline:2px solid #9e6874; outline-offset:2px; }
-.gmind-reading-selection-overlay { position:absolute; left:0; top:0; width:100%; height:100%; z-index:5; touch-action:pan-x pan-y; cursor:pointer; }
-.gmind-reading-selection-overlay[data-mode="point"] { cursor:pointer; }
-.gmind-reading-selection-overlay[data-mode="region"] { cursor:crosshair; touch-action:none; }
-.gmind-reading-selection-rectangle { position:absolute; border:1.5px dashed #ad7180;
+.roseglass-reading-selection-tools button[aria-pressed="true"] { background:#a97a81; color:white; border-color:#a97a81; }
+.roseglass-reading-selection-tools button:focus-visible { outline:2px solid #9e6874; outline-offset:2px; }
+.roseglass-reading-selection-overlay { position:absolute; left:0; top:0; width:100%; height:100%; z-index:5; touch-action:pan-x pan-y; cursor:pointer; }
+.roseglass-reading-selection-overlay[data-mode="point"] { cursor:pointer; }
+.roseglass-reading-selection-overlay[data-mode="region"] { cursor:crosshair; touch-action:none; }
+.roseglass-reading-selection-rectangle { position:absolute; border:1.5px dashed #ad7180;
   background:rgba(181,116,133,.16); box-shadow:0 0 0 1px rgba(255,255,255,.5) inset; pointer-events:none; }
-.gmind-reading-selection-mini-pin { position:absolute; width:9px; height:9px; border-radius:50%;
+.roseglass-reading-selection-mini-pin { position:absolute; width:9px; height:9px; border-radius:50%;
   background:#a26069; border:1.5px solid white; box-shadow:0 0 0 2px rgba(162,96,105,.2);
   transform:translate(-50%,-50%); pointer-events:none; box-sizing:border-box; }
-.gmind-reading-selection-rectangle[hidden], .gmind-reading-selection-mini-pin[hidden] { display:none!important; }
+.roseglass-reading-selection-rectangle[hidden], .roseglass-reading-selection-mini-pin[hidden] { display:none!important; }
 
 .canvas-wrap { position:relative; }
     /* Keep the primary action visible in the ChatGPT side panel at every width. */
@@ -165,8 +165,8 @@
     .zoom-controls input { width: 64px; }
     .zoom-controls select { height: 26px; padding: 2px 4px; font-size: 11px; max-width: 94px; }
     .zoom-controls output { min-width: 32px; font-size: 11px; }
-    .gmind-reading-selection-tools { gap: 3px; }
-    .gmind-reading-selection-tools button { width: auto; height: 26px; min-height: 26px; padding: 2px 5px; font-size: 11px; }
+    .roseglass-reading-selection-tools { gap: 3px; }
+    .roseglass-reading-selection-tools button { width: auto; height: 26px; min-height: 26px; padding: 2px 5px; font-size: 11px; }
     .stage, .pdf-open .stage { padding: 6px; box-sizing: border-box; }
     @media(max-width:1100px) { .layout { grid-template-columns: minmax(0,1fr); } }
     @media(max-width:600px) { .filename { flex-basis: calc(100% - 130px); max-width: none; } .zoom-controls { flex: 1 1 auto; } }
@@ -184,7 +184,7 @@
     <section class="layout">
       <div class="paper" id="paper">
         <div class="toolbar" id="readerToolbar"><div id="filename" class="filename">还没有打开课件</div><div class="nav"><button id="prev" aria-label="上一页" disabled>‹</button><input id="jumpPage" type="number" min="1" aria-label="跳到指定页" title="输入页码后回车" disabled><span id="counter">— / —</span><button id="next" aria-label="下一页" disabled>›</button></div><div class="zoom-controls"><button id="zoomOut" aria-label="缩小">−</button><input id="zoomRange" type="range" min="50" max="400" step="10" value="100" aria-label="页面缩放"><output id="zoomLabel">100%</output><button id="zoomIn" aria-label="放大">＋</button><select id="zoomMode" aria-label="页面适配"><option value="fit-page">适应整页</option><option value="fit-width">适应宽度</option><option value="custom">自定义</option></select></div></div>
-        <div id="stage" class="stage"><div id="empty" class="empty">选一份 PDF，我们从第一页开始。<br>课件在浏览器里读取；只有你点“发给我共读”时，内容才进入聊天。</div><div id="canvasWrap" class="canvas-wrap gmind-reading-stage" hidden><canvas id="slide" aria-label="课件页面，点击选择重点"></canvas><span id="pin" class="pin" hidden></span></div></div>
+        <div id="stage" class="stage"><div id="empty" class="empty">选一份 PDF，我们从第一页开始。<br>课件在浏览器里读取；只有你点“发给我共读”时，内容才进入聊天。</div><div id="canvasWrap" class="canvas-wrap roseglass-reading-stage" hidden><canvas id="slide" aria-label="课件页面，点击选择重点"></canvas><span id="pin" class="pin" hidden></span></div></div>
       </div>
       <aside class="side">
         <h2>课件工具</h2>
@@ -210,7 +210,7 @@
         <details><summary>图像链路验收</summary><section class="vision-panel"><strong>◈ 图像链路盲测</strong><p class="muted">答案只画在像素里。请用聊天里的回答验收，不以上传成功为准。</p><canvas id="visionCanvas" hidden aria-label="视觉盲测图片"></canvas><div class="actions"><button id="regenerateVision" class="secondary">重新生成</button><button id="downloadVision" class="secondary" disabled>导出 PNG</button><button id="sendVision" class="secondary" disabled>发往当前 Chat 验收</button></div><p id="visionStatus" class="muted" role="status"></p></section></details>
         <details><summary>实际渲染诊断 · v16</summary><pre id="renderDiagnostics">尚未渲染 PDF；这里会显示本机真实 CSS 尺寸、像素尺寸和 DPR。</pre></details>
         <details><summary>连接诊断</summary><pre id="diagnostics">reader v16 · Roseglass v7 · 正在初始化</pre></details>
-        <p class="muted rule">一般课件会随提问发送全部可提取文字；超长 PDF 可用上方按钮逐段发送全文，提问时同时带上当前页及相邻页。扫描件的图像需逐页发送；全文进入聊天仍受聊天上下文容量影响，共读书签帮助保留结论与未解问题。这里尚不写入 g-mind 长期记忆。</p>
+        <p class="muted rule">一般课件会随提问发送全部可提取文字；超长 PDF 可用上方按钮逐段发送全文，提问时同时带上当前页及相邻页。扫描件的图像需逐页发送；全文进入聊天仍受聊天上下文容量影响，共读书签帮助保留结论与未解问题。这里尚不写入 external services 长期记忆。</p>
       </aside>
     </section>
   </main>

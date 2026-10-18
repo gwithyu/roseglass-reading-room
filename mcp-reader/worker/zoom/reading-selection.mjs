@@ -1,7 +1,7 @@
 import { pointFromClient, regionFromClient, validRegion, makeSelection, buildReadingMessage, captureSelectionImage } from './reading-selection-geometry.mjs';
 
 /**
- * Progressive selection overlay for the EXISTING private reading Site.
+ * Selection overlay for the public Roseglass MCP reader.
  * Only the host's real delivery bridge can acknowledge images/text; no UI action auto-sends.
  * Caller must disable the old selection listener, and must call onPageChanged on navigation.
  */
@@ -10,7 +10,7 @@ export function installReadingSelection({stage, canvas, toolbar, getPageNumber, 
   if (![stage,canvas,toolbar].every(Boolean) || typeof getPageNumber!=='function' || typeof getDocumentFingerprint!=='function' || typeof onSelectionChanged!=='function') throw new TypeError('Missing selection adapter');
   const doc=stage.ownerDocument;
   const selector=doc.createElement('div');
-  selector.className='gmind-reading-selection-tools';
+  selector.className='roseglass-reading-selection-tools';
   selector.setAttribute('role','group');selector.setAttribute('aria-label','课件选择范围');
   for(const [action,label] of [['point','● 点选'],['region','＋ 框选'],['page','▣ 整页']]){
     const btn=doc.createElement('button');btn.type='button';btn.dataset.action=action;btn.textContent=label;
@@ -19,12 +19,12 @@ export function installReadingSelection({stage, canvas, toolbar, getPageNumber, 
   }
   toolbar.appendChild(selector);
   const overlay=doc.createElement('div');
-  overlay.className='gmind-reading-selection-overlay';
+  overlay.className='roseglass-reading-selection-overlay';
   overlay.setAttribute('role','presentation');
   stage.appendChild(overlay);
-  const rectangle=doc.createElement('div');rectangle.className='gmind-reading-selection-rectangle';rectangle.hidden=true;
+  const rectangle=doc.createElement('div');rectangle.className='roseglass-reading-selection-rectangle';rectangle.hidden=true;
   overlay.appendChild(rectangle);
-  const marker=doc.createElement('div');marker.className='gmind-reading-selection-mini-pin';marker.hidden=true;
+  const marker=doc.createElement('div');marker.className='roseglass-reading-selection-mini-pin';marker.hidden=true;
   overlay.appendChild(marker);
   let mode='point', selection=null, drawing=null, disposed=false;
   const page=()=>{

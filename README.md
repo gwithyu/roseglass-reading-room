@@ -1,96 +1,68 @@
-# Roseglass Reading Room
+# Roseglass 共读室
 
-**An independent, privacy-first PDF / PPTX reading room with highly transparent frosted-glass UI, optional ChatGPT follow-up, and local-first files.**
+**把课件打开，把不懂的地方指出来，和自己的 AI 一起读。**
 
-This is a **new, clean-room public starter implementation**, not an export or derivative copy of any private memory system or proprietary project. It contains no private endpoints, secrets, account IDs, conversations, document samples, telemetry, or personal data.
+一个开源的 PDF / PPTX 阅读与图文共读工具。玫瑰棕磨砂玻璃界面，支持重点定位、全文搜索、书签与笔记；聊天内版本还提供框选、整页讲解和中英德离线 OCR。
 
-## Features
+[快速开始](#快速开始) · [聊天内版本](mcp-reader/README.md) · [发布说明](CHANGELOG.md) · [使用与隐私](docs/USAGE.md) · [问题反馈](https://github.com/gwithyu/roseglass-reading-room/issues)
 
-- **Slides first:** document fills the flexible reading pane; thumbnails are hidden by default; the toolbar stays compact. Desktop/mobile, full screen, **a 50–300% zoom slider** (relative to fit-page size), **Fit page / Fit width / Custom** presets, scrollable enlarged slides, and per-document remembered zoom and last page.
-- **Actual high-transparency glass:** translucent rose/charcoal surfaces with `backdrop-filter: blur()` and optional supporting gradients; no opaque pink wall.
-- **PDF:** open locally with Mozilla PDF.js, page navigation, text extraction, multi-page search, lazy thumbnails, ordered, length-bounded, lossless full-text segmented transfer (including extra-long pages).
-- **PPTX:** open locally with MIT-licensed `pptx-browser` canvas renderer, page navigation, approximate text extraction from OOXML, and segmented transfer. Legacy `.ppt` isn't supported.
-- **Study workflow:** resume each document at its own last page and zoom (even after reopening the browser); reset only that document’s reading position from Bookmarks; click to mark a normalized point and **save a per-slide annotation** in Bookmarks & Notes; jump back to the saved position, add a short question or note, or delete it; page context export; local bookmarks by truncated SHA-256 fingerprint; drag-and-drop; no private credentials.
-- **Visual co-reading (experimental ChatGPT bridge):** click **图文共读** to create a high-resolution PNG from the actual page (independent of visible zoom), overlay the selected point, and—if `window.openai.uploadFile`, `setWidgetState`, and `sendFollowUpMessage` all exist—try to share an image reference plus actual page text in the ongoing conversation. **Receipt of an image ID is not proof that the model saw its pixels.** The message instructs ChatGPT to verify image visibility. Unsupported hosts automatically download the marked PNG and copy/export the page context for you to upload manually. **导出本页 PNG** always works when browser canvas export is permitted. Only your explicit click transfers material. No private backend is used.
-- **No backend:** all document parsing remains in the browser. On first file open, browser downloads the public libraries from the CDN; on-page PDF/PPTX contents are not uploaded by this app.
+## 它能做什么
 
-## Run
+- **读课件：**翻页、适应整页 / 适应宽度、手动缩放，保持页面原比例。
+- **指出重点：**点击词句、公式或图形；聊天内 MCP 版还可拖动框选、选择整页。
+- **图文一起读：**把真实页图、相关文字与位置交给自己的聊天。框选时可附选区高清图。
+- **接着学：**搜索全文，保存书签和本页重点；长 PDF 可按段发送文字、按需发送页图。
+- **读扫描页：**MCP 版内置中文、英文、德语离线 OCR，保留真实图像与待核对的识别文字。
+
+## 选择适合你的版本
+
+| | 独立网页版（仓库根目录） | 聊天内 MCP 版（`mcp-reader/`） |
+|---|---|---|
+| 文件 | PDF、PPTX | PDF；PPTX 请先导出 PDF |
+| 阅读、搜索、笔记 | 支持 | 支持 |
+| 点选 / 框选 / 整页 | 点选、当前页导出 | 三种范围均支持 |
+| 扫描文字识别 | 尚未接入 | 中英德离线 OCR |
+| 进入 AI 聊天 | 支持时尝试宿主接口；否则导出后手动附加 | 需自行部署 MCP，并由兼容宿主连接 |
+| 是否需要 AI API Key | 阅读不需要 | 阅读和 OCR 不需要；AI 讲解取决于自己的聊天服务 |
+
+**这是开源工具，不是 ChatGPT 官方产品，也不是一个安装即用的商店插件。** 分享这个仓库不会共享作者的聊天账户或服务额度。免费账户能否连接 MCP，取决于宿主实际支持，不能保证。
+
+## 快速开始
+
+### 先在浏览器读课件
+
+下载仓库 ZIP，或克隆后启动一个静态服务器：
 
 ```bash
+git clone https://github.com/gwithyu/roseglass-reading-room.git
+cd roseglass-reading-room
 python3 -m http.server 8080
-# open http://localhost:8080
 ```
 
-Or serve this folder with any static file server, including GitHub Pages. Do not use `file://` as module and browser security policies differ across browsers.
+浏览器打开 `http://localhost:8080` → 点击「打开课件」→ 选择自己的 PDF 或 PPTX。
 
-## ChatGPT integration
+要让 AI 看图，使用「图文共读」。若页面提示宿主不支持，导出当前页 PNG，并把图片与文字一起附到自己的聊天中。**仓库页面本身不是阅读器入口**；静态托管需另行配置。独立网页版首次使用会从 CDN 加载解析库。
 
-The stand-alone UI detects `window.openai?.sendFollowUpMessage({prompt})` (ChatGPT-specific extension). To make a *real ChatGPT App*, supply your own MCP server and UI resource registration according to the current [OpenAI Apps SDK documentation](https://developers.openai.com/plugins/build/chatgpt-ui). This repository intentionally does **not** carry a connection to any private application or memory infrastructure. If the extension is unavailable, buttons copy or download text only.
+### 想在聊天里直接点选、框选
 
-**Important limitation:** `sendFollowUpMessage` accepts **text**. The optional widget `imageIds` + upload helper may or may not make actual image pixels available to the model in every host/version; this remains **unverified for real ChatGPT end-to-end delivery**. If the assistant cannot describe image-only details, use **导出本页 PNG** and attach the resulting PNG to the current Chat yourself. A private app cannot automatically be recreated by this independent public repo. Long presentations are segmented at ~9k characters each, delivered on repeated button presses. PDF text extraction depends on an embedded text layer; scanned pages require OCR beyond this starter's scope.
+进入 [`mcp-reader/README.md`](mcp-reader/README.md)，按文档构建并部署自己的 MCP 服务，再连接兼容的聊天宿主。此版本将页面图像、文字、页码、文档指纹和选区记录关联发送；不会在每次提问时上传整本书的全部高清页图。
 
-## Reading size
+## 隐私与使用边界
 
-The footer reading controls let you pick **适应整页 (Fit page)**, **适应宽度 (Fit width)**, or **自定义比例 (Custom)**. The slider and ± buttons control 50–300% relative to the current fit-page size; enlarged pages overflow into a scrollable viewport rather than being resized back down. Each file has an independent page and zoom record under `roseglass:v2:position:<SHA-256 prefix>` in this browser. The demo still uses the older global `roseglass:v1:zoom` preference, which is never applied to newly opened documents. The reader stores neither file names nor file contents. If browser storage or secure hashing is unavailable, the page works but cannot reliably resume its position. Full-screen hides browser chrome where supported. Glass/blur is applied to surrounding UI, **never to the slide canvas itself**.
+- 文件解析在本地浏览器进行；MCP 版 OCR 也在本地进行，不调用第三方识别接口。
+- 只有你明确点击发送或导出，才向聊天提供相应内容。聊天服务如何保留文件，由该服务自己的政策决定。
+- 笔记和阅读位置属于浏览器本地数据。隐身模式、清理站点数据或换设备可能影响恢复；重要内容请导出或复制书签保存。
+- 自动识别可能误读公式、表格与文字。识别结果会标记为待核对，页图仍是视觉讲解依据。
+- “上传成功”“宿主接受请求”不等于模型已经看见图片。若 AI 无法描述图像内容，先核对附件，不要把文字推断当作识图成功。
 
-## Browser and network requirements
+## 发布验证
 
-Modern Chromium, Firefox or Safari with Canvas, `DecompressionStream('deflate-raw')` and ES modules. These two public JS libraries are loaded lazily and version-pinned:
+本次公开版的 MCP 自动化检查覆盖 **72 项测试**：生成的 52 / 300 页 PDF、真实 PDF 渲染、扫描 PDF 的实际 OCR、中英德混合图片、坐标、图文关联、失败状态、搜索和书签。独立网页版另有本地逻辑与源码检查。
 
-- PDF.js `5.4.296`, Mozilla / Apache-2.0 (`cdn.jsdelivr.net`).
-- `pptx-browser` `4.1.5`, MIT (`esm.sh`).
+这些自动化结果不代表所有浏览器、聊天宿主、扫描质量或复杂公式均已验证。实际 ChatGPT 内的界面、沙箱限制与图片接收，仍需要在使用环境中核对。详见[发布说明](CHANGELOG.md)。
 
-For CSP-restricted or offline deployments, vendor *matching version* JS modules and the PDF.js worker into your own deployment and replace the URLs in `src/app.js`. The exact CDN bundling and host CSP compatibility should be tested in the target environment before production distribution.
+## 反馈与贡献
 
-## Security / privacy notes
+欢迎通过 [Issues](https://github.com/gwithyu/roseglass-reading-room/issues) 提交问题。请说明使用的是哪个版本、浏览器、操作步骤和报错；截图前遮住个人信息，不要提交未经授权的完整课件。
 
-- There is no server upload or analytics. Per-file reading position saves `{page, zoomMode, zoom}` and can be reset without touching bookmarks. Browser bookmark state persists locally under `roseglass:v1:bookmarks:*`, keyed by document SHA-256 digest prefix, **never by a file name or extracted text**.
-- Annotation records save the page, optional normalized x/y click location and up to 480 characters of user-written notes in local browser storage, never the document itself. Sending the current page also includes its saved notes; nothing is automatically transmitted.
-- Sending to ChatGPT or copying context is explicitly user initiated. On **图文共读** the user authorizes uploading just the current rendered PNG and its extracted text when the host supports it; otherwise a local PNG/text is exported. No automatic background upload, telemetry, or storage of a full deck. Hosted ChatGPT may retain uploaded files according to its own privacy policy. Third-party rendering libraries are still loaded from CDNs.
-- Search results are inserted using `textContent`, not untrusted HTML. Selected files are not sent to the CDN, but scripts fetched from a CDN execute in the page; privacy-sensitive hosts should self-host audited libraries.
-- For very large/complex documents browsers may run out of memory. There is a 250 MB input cap and a 6 MB per-slide XML extraction cap.
-- This starter is not an official OpenAI product; no name or logo affiliation is implied.
-
-## Publish to GitHub
-
-1. Create a new **public empty repository** (e.g., `roseglass-reading-room`) under your GitHub account; do **not** convert or open-source an existing private repository.
-2. Unzip this starter into your new local repository.
-3. Run `git add . && git commit -m "Add privacy-first glass reading room" && git push -u origin main`.
-4. To host: enable **Settings → Pages → Deploy from a branch → main / (root)**, or use your preferred static hosting.
-
-## License
-
-This starter's original application source is released under MIT (see `LICENSE`). Third-party libraries have their own licenses, and are loaded separately.
-
-## Study notes and huge lectures
-
-Open **BOOKMARKS & NOTES** in the top toolbar (closed by default, so the slide remains largest). Optionally click the slide to mark a point, type a note in the sidebar and click **保存本页重点**. Tap a saved note to jump back and show the same pin. Notes are separated by the document SHA-256 fingerprint, persist in this browser, and survive **重置本课件的阅读位置**. They can be deleted independently. Local storage may not persist in incognito or restricted embedded browsers.
-
-**全文分段** now preserves page order across arbitrarily long text pages and splits large pages into consecutive pieces, with a 9,000-character maximum *payload* per piece. The chat prefix adds a small amount beyond that limit. Repeated clicking delivers the next piece; a failed send does not advance. This feature is an export aid, not long-term remote storage.
-
-## v5: actual page pixels and click point
-
-The PNG exporter draws from the original PDF page or PPTX slide at bounded high resolution (long edge up to 2400 px and about 4.5 megapixels), not from the surrounding blurred glass or mobile-sized preview. A burgundy focus ring marks the normalized click location; notes and extracted text accompany the message. If the image is not readable by the model, it must say so rather than invent a shape or color. The **download PNG** fallback is the dependable way to attach a real image to a normal chat. Automated end-to-end visual receipt in ChatGPT is **not yet confirmed**. For canvas-tainted PPTX assets, the export may fail with an explicit warning and the user can take a screenshot instead.
-
-
-## v6: actual image-receipt blind test and stale-page guard
-
-Click **◈** in the toolbar to open an image-only challenge overlay. The viewer generates a randomized **PAGE KEY**, colored center shape, and 2×2 color grid as canvas pixels. The follow-up message deliberately contains **none of the answer values**. Click **发往当前 Chat 验收** to test the optional host image-ref pipeline; only a chat response accurately describing the image counts as a successful visual receipt. A successful upload or message request **does not** count. If the host extension is unavailable or fails, the reader exports a PNG for manual attachment to the same chat. The overlay stays off by default and does not shrink the reading canvas.
-
-The v6 image relay also guards against sending a stale page after document switches: it checks document identity both before the upload, after it, and before follow-up. Upload, widget-state, and follow-up errors fail to manual-export instead of silently claiming success. This test does not send lecture data until the user explicitly chooses **图文共读** on a lecture page, which remains a separate button. Visual delivery is **not certified** until tested inside the actual ChatGPT host.
-
-Run `node --test tests/*.test.mjs && node tests/smoke.mjs` to validate local logic and source wiring. Browser rendering, CDN compatibility, and actual ChatGPT image perception require additional integration testing.
-
-## v7: trustworthy course delivery and long-document indexing
-
-- Long-PDF indexing is tied to the current PDF document and text buffer, cancelled on file replacement, and yields periodically to keep the UI responsive.
-- **Full-text transfer is never called “sent” just because it was copied or downloaded.** Without a connected ChatGPT host, the reader waits for you to paste the segment and click **已粘贴，下一段** before advancing. Successful host follow-up requests are reported as *requested*, not model-read receipts.
-- Browser export and blind vision test remain available, but production ChatGPT image perception is not certified by local tests.
-- Real-course local regression input: seven-page Applied Data Analytics PDF and three-page university timetable. Long-pdf fixture (266 pages) and synthetic PPTX (35 slides) stay outside the public repo to avoid shipping course/private material. PDFs were inspected with a separate offline PDF renderer; local Chromium cannot download the pinned CDN modules in this test environment. That means **PDF.js and pptx-browser real-file rendering in the browser remains a release blocker**.
-
-### Private-site upgrade boundary
-
-This independent public repository does not control the private ChatGPT Site project. Preserving the existing Sites project and plugin identity requires editing its original Sites UI source in ChatGPT Work or a writable Sites project editor. Do not deploy this repository over the private project or overwrite its connector. See the private migration kit distributed separately; no private URLs or credentials are included here.
-## MCP PDF reader and offline OCR (16.3.1)
-
-A reusable, self-contained MCP PDF reader is now available in [`mcp-reader/`](mcp-reader/README.md). It adds point/region/whole-page messages, linked text/page/crop images, bounded host-acceptance receipts, long-PDF workflows and offline Chinese/English/German OCR. The standalone app above remains independent; its earlier statement that OCR is out of scope applies to the root starter. See the subdirectory for build instructions, third-party licenses and the distinction between automated tests and real ChatGPT host verification.
+代码采用 [MIT License](LICENSE)。PDF.js、Tesseract 及语言模型保留各自第三方许可与来源说明，见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。

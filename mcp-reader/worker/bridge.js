@@ -34,7 +34,7 @@
     });
   }
   const pending = new Map();
-  const lines = ["reader v16.3.1"];
+  const lines = ["reader v1.0.0"];
   const reports = [];
   let reporting = false;
   let nextId = 1, initialized = false, closed = false;
@@ -200,7 +200,7 @@
     }
     try {
       const result = await request("ui/initialize", {
-        appInfo: { name: "gmind-reading-chat", version: "16.3.1" },
+        appInfo: { name: "roseglass-reading-room", version: "1.0.0" },
         appCapabilities: { availableDisplayModes: ["inline", "fullscreen"] },
         protocolVersion: "2026-01-26",
       });

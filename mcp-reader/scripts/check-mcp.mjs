@@ -55,14 +55,14 @@ const opened = await call("tools/call", { name: tool.name, arguments: {} });
 assert.equal(opened.isError, undefined);
 assert.equal(opened.structuredContent.status, "awaiting-ui-initialization");
 assert.equal(opened._meta, undefined, "tool result must not override a cached tool's UI URI");
-assert.equal((await call("resources/read", {uri:"ui://gmind-reading-chat/reader-v1.html"})).contents[0].mimeType, resource.mimeType);
-assert.equal((await call("initialize")).serverInfo.version, "16.3.1");
-assert.equal((await call("resources/read", {uri:"ui://gmind-reading-chat/reader-v3.html"})).contents[0].mimeType, resource.mimeType);
+assert.equal((await call("resources/read", {uri:"ui://roseglass-reading-room/reader-v1.html"})).contents[0].mimeType, resource.mimeType);
+assert.equal((await call("initialize")).serverInfo.version, "1.0.0");
+assert.equal((await call("resources/read", {uri:"ui://roseglass-reading-room/reader-v3.html"})).contents[0].mimeType, resource.mimeType);
 const runtime = (await call("tools/list")).tools.find(t => t.name === "report_reading_room_runtime");
 assert.deepEqual(runtime._meta.ui.visibility, ["app"]);
 assert.equal((await call("tools/call", {name:runtime.name,arguments:{stage:"host-ready",detail:"fixture"}})).structuredContent.accepted,true);
 assert.equal((await call("tools/call", {name:runtime.name,arguments:{stage:"host-ready",pdf:"not permitted"}})).isError,true);
-assert.equal((await call("resources/read", {uri:"ui://gmind-reading-chat/reader-v4.html"})).contents[0].text, resource.text);
+assert.equal((await call("resources/read", {uri:"ui://roseglass-reading-room/reader-v4.html"})).contents[0].text, resource.text);
 console.log("MCP 2026-07-28 result/cache contracts, UI linkage and embedded scripts are valid");
 
 const pageImageTool=(await call("tools/list")).tools.find(t=>t.name==="read_reading_page_image");

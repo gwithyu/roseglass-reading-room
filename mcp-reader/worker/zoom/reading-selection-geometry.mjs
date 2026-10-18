@@ -36,13 +36,13 @@ export function makeSelection({kind, pageNumber, point, region, selectionId, doc
   if (kind === 'point' && (!point || !finite(point.x,point.y) || point.x<0 || point.x>1 || point.y<0 || point.y>1)) throw new RangeError('Invalid point');
   if (kind === 'region' && !validRegion(region)) throw new RangeError('Invalid region');
   if (typeof selectionId !== 'string' || !selectionId) throw new TypeError('Missing selection id');
-  return Object.freeze({schema:'gmind-reading-selection/v1', kind, pageNumber, selectionId, documentFingerprint,
+  return Object.freeze({schema:'roseglass-reading-selection/v1', kind, pageNumber, selectionId, documentFingerprint,
     ...(kind === 'point' ? {point:{x:point.x,y:point.y}} : {}),
     ...(kind === 'region' ? {region:{...region}} : {})});
 }
 /** The page is always the context, never just nearby text. The region image is additional context. */
 export function buildReadingMessage(selection, {fileName='课件', totalPages, pageText='', regionText=null, nearbyText=null, imageAttached=false, imageDelivery=null}={}) {
-  if (selection?.schema !== 'gmind-reading-selection/v1') throw new TypeError('Expected selection v1');
+  if (selection?.schema !== 'roseglass-reading-selection/v1') throw new TypeError('Expected selection v1');
   const scope = {point:'点选（聚焦该位置并结合整页解释）',region:'框选（重点解释选框，并结合整页上下文）',page:'整页（完整讲解整页）'}[selection.kind];
   const head = [`请继续与我共读。`, `课件：${fileName}`, `当前页：${selection.pageNumber}${Number.isSafeInteger(totalPages)?` / ${totalPages}`:''}`, `范围：${scope}`, `选择记录：${JSON.stringify(selection)}`];
   if (selection.kind==='region' && typeof regionText === 'string') head.push(`框选区提取文字：\n${regionText}`);

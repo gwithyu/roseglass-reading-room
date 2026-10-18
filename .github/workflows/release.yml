@@ -1,0 +1,45 @@
+name: Test and release Roseglass
+on:
+  push:
+    branches: [main]
+    paths: [RELEASE_VERSION]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Test standalone reader
+        run: node --test tests/*.test.mjs && node tests/smoke.mjs
+      - name: Install MCP test dependencies
+        working-directory: mcp-reader
+        run: npm ci
+      - name: Build and test MCP reader
+        working-directory: mcp-reader
+        run: npm run build && npm test && npm run validate
+  release:
+    needs: verify
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Publish versioned source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version=$(cat RELEASE_VERSION)
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          tag="v$version"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "Release $tag already exists; nothing to overwrite."
+            exit 0
+          fi
+          mkdir -p release-artifacts
+          git archive --format=zip --prefix="roseglass-reading-room-$version/" --output="release-artifacts/roseglass-reading-room-$version.zip" HEAD
+          gh release create "$tag" "release-artifacts/roseglass-reading-room-$version.zip" --target "$GITHUB_SHA" --title "Roseglass 共读室 $tag" --notes-file CHANGELOG.md --latest

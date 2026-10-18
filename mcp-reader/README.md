@@ -1,4 +1,4 @@
-# Roseglass MCP Reader 16.3.1
+# Roseglass MCP Reader 1.0.0
 
 Browser-local PDF co-reading UI and a self-contained MCP Worker. This subdirectory adds a reusable MCP implementation; the original standalone PDF/PPTX app at the repository root remains separate.
 

@@ -1,9 +1,9 @@
 __MANAGEMENT_JS__
 const READER_SOURCES = __READER_SOURCES__;
 // Source of the published Worker. scripts/build.sh embeds the UI and pdf.js here.
-const UI_URI = "ui://gmind-reading-chat/reader-v16.html";
-const OLD_UI_URIS = ["ui://gmind-reading-chat/reader-v15.html", "ui://gmind-reading-chat/reader-v14.html", "ui://gmind-reading-chat/reader-v13.html", "ui://gmind-reading-chat/reader-v12.html", "ui://gmind-reading-chat/reader-v11.html", "ui://gmind-reading-chat/reader-v1.html", "ui://gmind-reading-chat/reader-v3.html", "ui://gmind-reading-chat/reader-v4.html", "ui://gmind-reading-chat/reader-v5.html", "ui://gmind-reading-chat/reader-v6.html", "ui://gmind-reading-chat/reader-v7.html", "ui://gmind-reading-chat/reader-v8.html", "ui://gmind-reading-chat/reader-v9.html", "ui://gmind-reading-chat/reader-v10.html"];
-const VERSION = "16.3.1";
+const UI_URI = "ui://roseglass-reading-room/reader-v16.html";
+const OLD_UI_URIS = ["ui://roseglass-reading-room/reader-v15.html", "ui://roseglass-reading-room/reader-v14.html", "ui://roseglass-reading-room/reader-v13.html", "ui://roseglass-reading-room/reader-v12.html", "ui://roseglass-reading-room/reader-v11.html", "ui://roseglass-reading-room/reader-v1.html", "ui://roseglass-reading-room/reader-v3.html", "ui://roseglass-reading-room/reader-v4.html", "ui://roseglass-reading-room/reader-v5.html", "ui://roseglass-reading-room/reader-v6.html", "ui://roseglass-reading-room/reader-v7.html", "ui://roseglass-reading-room/reader-v8.html", "ui://roseglass-reading-room/reader-v9.html", "ui://roseglass-reading-room/reader-v10.html"];
+const VERSION = "1.0.0";
 const MIME = "text/html;profile=mcp-app";
 const UI_HTML = __EMBEDDED_UI_HTML__;
 const resourceMeta = {
@@ -123,12 +123,12 @@ export default {
         resultType: "complete", supportedVersions: ["2026-07-28"],
         cacheScope: "private", ttlMs: 0,
         capabilities: { tools: {}, resources: {} },
-        _meta: { "io.modelcontextprotocol/serverInfo": { name: "gmind-reading-chat", version: VERSION } },
+        _meta: { "io.modelcontextprotocol/serverInfo": { name: "roseglass-reading-room", version: VERSION } },
       });
     }
     if (method === "initialize") return rpc(id, {
       protocolVersion: "2025-11-25", capabilities: { tools: {}, resources: {} },
-      serverInfo: { name: "gmind-reading-chat", version: VERSION },
+      serverInfo: { name: "roseglass-reading-room", version: VERSION },
     });
     if (method === "ping") return rpc(id, {});
     if (method === "tools/list") return rpc(id, { cacheScope: "private", ttlMs: 0, tools: [appTool, pageImageTool, runtimeTool, ...managementTools] });

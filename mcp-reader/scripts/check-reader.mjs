@@ -12,7 +12,7 @@ const canvasModule = process.env.READER_CANVAS_MODULE ||
 const { Canvas, DOMMatrix, Path2D, ImageData } = require(canvasModule);
 const source = await readFile(new URL("../dist/server/index.js", import.meta.url), "utf8");
 const { default: worker } = await import("data:text/javascript;base64," + Buffer.from(source).toString("base64"));
-const response = await worker.fetch(new Request("https://test/mcp", { method: "POST", body: JSON.stringify({jsonrpc:"2.0",id:1,method:"resources/read",params:{uri:"ui://gmind-reading-chat/reader-v12.html"}}) }));
+const response = await worker.fetch(new Request("https://test/mcp", { method: "POST", body: JSON.stringify({jsonrpc:"2.0",id:1,method:"resources/read",params:{uri:"ui://roseglass-reading-room/reader-v12.html"}}) }));
 const html = (await response.json()).result.contents[0].text;
 const scripts = [...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/g)].map(m => m[2]);
 
@@ -42,7 +42,7 @@ async function environment({ image = true, rejection = false, reporting = false,
     node.style = {setProperty(){}}; node.hidden=false; node.disabled=false; node.value=""; node.textContent="";
     node.dataset = {}; node.attributes = {}; node.setAttribute = (k,v) => {node.attributes[k]=v;};
     node.querySelectorAll = selector => selector.includes('button') ? node.children.flatMap(c=>c.querySelectorAll('button').concat(c.dataset?.action?[c]:[])) : [];
-    node.querySelector = () => node.children.find(c=>c.className==='gmind-reading-selection-overlay');
+    node.querySelector = () => node.children.find(c=>c.className==='roseglass-reading-selection-overlay');
     node.appendChild = child => {node.children.push(child); return child;};
     node.ownerDocument = {createElement:tag=>decorate({})};
     node.children = []; node.replaceChildren = (...children) => { node.children = children; }; node.append = (...children) => node.children.push(...children);
@@ -398,7 +398,7 @@ test("v16 starts at Fit Page and reports real backing pixels separately from CSS
   await env.nodes.get("sample").handlers.get("click")();
   assert.equal(env.context.state.zoomMode,"fit-page");
   const d=JSON.parse(env.nodes.get("renderDiagnostics").textContent);
-  assert.equal(d.readerVersion,"16.3.1");assert.equal(d.effectiveDpr,2.5);
+  assert.equal(d.readerVersion,"1.0.0");assert.equal(d.effectiveDpr,2.5);
   assert.ok(d.bitmapWidth>d.cssWidth*2.49);assert.ok(d.bitmapHeight>d.cssHeight*2.49);
   assert.ok(d.cssHeight<=d.frameHeight);assert.ok(d.cssWidth<=d.frameWidth);
   assert.ok(parseFloat(env.nodes.get("stage").style.height)<=560);
