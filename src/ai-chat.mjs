@@ -57,7 +57,9 @@ export function initAiChat({getContext,notice=()=>{}}){
   open.addEventListener('click',async()=>{
     panel.classList.remove('hidden');panel.setAttribute('aria-hidden','false');
     status.textContent='正在检查 API 接口…';
+    const healthSession=++sessionVersion;
     const checked=await availability();
+    if(healthSession!==sessionVersion)return; // panel closed or reopened during health check
     mode=checked;
     if(mode==='pages-byok'&&provider.value==='ollama')provider.value='deepseek';
     if(mode==='local-only'&&PRESETS[provider.value]?.pagesOnly)provider.value='ollama';
@@ -74,6 +76,9 @@ export function initAiChat({getContext,notice=()=>{}}){
     if((e.metaKey||e.ctrlKey)&&e.key==='Enter'){e.preventDefault();send.click();}
   });
   provider.addEventListener('change',updateProvider);
+  // A different model or personal Key must not inherit in-flight requests or old chat context.
+  model.addEventListener('input',()=>{invalidateRequest();clearHistory();});
+  keyInput.addEventListener('input',()=>{invalidateRequest();clearHistory();});
   $('ai-reset').addEventListener('click',()=>{
     invalidateRequest();
     clearHistory();clearKey();status.textContent='临时对话和 API Key 输入已清空。';
