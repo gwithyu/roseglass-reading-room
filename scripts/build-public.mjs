@@ -40,6 +40,6 @@ html=html.replace(hostButton,'id="send-chat" class="bottom-button primary hidden
 html=html.replace(visionHostButton,'id="send-vision" class="soft-button vision-primary hidden"');
 await writeFile(resolve(dist,'index.html'),html,'utf8');
 await writeFile(resolve(dist,'_headers'),
-  '/*\n  Referrer-Policy: no-referrer\n  X-Content-Type-Options: nosniff\n  X-Frame-Options: DENY\n  Permissions-Policy: camera=(), microphone=(), geolocation=()\n\n/api/*\n  Cache-Control: no-store\n','utf8');
+  '/*\n  Referrer-Policy: no-referrer\n  X-Content-Type-Options: nosniff\n  X-Frame-Options: DENY\n  Permissions-Policy: camera=(), microphone=(), geolocation=()\n  Content-Security-Policy: default-src 'self'; script-src 'self'; connect-src 'self'; worker-src 'self' blob:; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'\n\n/api/*\n  Cache-Control: no-store\n','utf8');
 console.log('Public-only static assets prepared:',dist);
 console.log('Pages Functions live in project-root functions/ and deploy only via Wrangler.');
