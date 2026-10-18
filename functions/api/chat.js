@@ -9,7 +9,10 @@ export const CLOUD_PROVIDERS=Object.freeze({
   qwen:{url:'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions',vision:true},
   kimi:{url:'https://api.moonshot.ai/v1/chat/completions',vision:false}
 });
-const MAX_BYTES=9_500_000;
+// Keep below Netlify's 6 MB buffered request limit (which includes JSON and image base64).
+export const MAX_BYTES=4_800_000;
+// Netlify synchronous functions have a 60-second hard limit; leave cold-start/response headroom.
+export const UPSTREAM_TIMEOUT_MS=45_000;
 const RESPONSE_HEADERS={
   'Content-Type':'application/json; charset=utf-8',
   'Cache-Control':'no-store, max-age=0',
@@ -34,7 +37,7 @@ export function validateRequest(payload){
   });
   if(cleaned.at(-1).role!=='user')throw Error('最后一条必须是提问');
   const image=payload.image;
-  if(image!=null&&(typeof image!=='string'||!provider.vision||!/^data:image\/png;base64,[A-Za-z0-9+/=]+$/.test(image)||image.length>8_000_000))throw Error('当前模型不支持图片或图片超过限制');
+  if(image!=null&&(typeof image!=='string'||!provider.vision||!/^data:image\/png;base64,[A-Za-z0-9+/=]+$/.test(image)||image.length>4_300_000))throw Error('图片过大或当前模型不支持图片；请关闭图片选项，仅发送文字后重试');
   if(image)cleaned[cleaned.length-1].content=[
     {type:'text',text:cleaned.at(-1).content},
     {type:'image_url',image_url:{url:image}}
@@ -58,7 +61,7 @@ export async function handleChat(request,{fetchImpl=fetch}={}){
   let upstream;
   try{
     const controller=new AbortController();
-    const timeout=setTimeout(()=>controller.abort(),85_000);
+    const timeout=setTimeout(()=>controller.abort(),UPSTREAM_TIMEOUT_MS);
     try{
       upstream=await fetchImpl(input.provider.url,{
         method:'POST',
