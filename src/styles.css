@@ -78,3 +78,14 @@
 .ai-panel textarea{resize:vertical;min-height:70px;max-height:145px}.ai-controls{display:flex;gap:8px;justify-content:space-between;align-items:center}
 .ai-controls .bottom-button{height:36px}.ai-status,.ai-disclaimer{margin:0;color:var(--sub);font-size:11px;line-height:1.5}.ai-status{color:#f3d9d4}.ai-disclaimer{opacity:.85}
 @media(max-width:700px){.ai-panel{inset:70px 9px 66px;width:auto;padding:12px;border-radius:16px}.ai-messages{min-height:60px}}
+
+
+/* Free handoff to a user's own AI; avoids a shared paid API. */
+.handoff-select{border:1px solid var(--edge);color:var(--text);background:rgba(255,255,255,.09);border-radius:12px;font:inherit;font-size:12px;padding:8px 7px;max-width:104px}
+.handoff-select option{background:#30272e;color:#f9f3f1}
+@media(max-width:850px){
+  .bottom-actions{min-width:0;max-width:100%;overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:thin;align-items:center}
+  .bottom-actions > *{flex:0 0 auto;white-space:nowrap}
+  .bottom-actions .bottom-button{flex:0 0 auto;min-width:max-content;padding:9px 10px;font-size:11px}
+  .bottom-actions .handoff-select{flex:0 0 96px}
+}
