@@ -39,7 +39,7 @@ bash scripts/preview-netlify.sh
 
 脚本会先在本地跑共读邀请、个人 API、Netlify、Pages 和静态构建相关测试。**任何失败都会直接停止，不会进行部署**。通过后还需要在终端手动输入 `YES` 才会运行 Netlify CLI。
 
-根据 Netlify 官方的 `--allow-anonymous` 功能，未登录也能创建一个临时草稿站点和随机预览网址；必须在 **1 小时内认领**，否则 Netlify 会移除。**临时草稿不是长期固定网址**，也不保证申请一定成功。本站脚本不包含 `--prod`，不能通过它发布正式生产。
+**重要纠正：Netlify 官方明确要求使用 Serverless Functions 的项目必须有 Netlify 账户。** `--allow-anonymous` 只能用于不依赖 Functions 的静态临时站点，不适合 Roseglass 需要真正 AI 接口的共读室。因此这个脚本不使用匿名模式；所有者必须先在自己的电脑执行 `npx --yes netlify-cli@latest login` 并确认 Netlify Free（$0）方案，之后脚本才尝试创建带 Functions 的草稿预览。预览网址不是正式的固定生产入口。本站脚本不包含 `--prod`。
 
 当代码验收通过、Netlify 免费账户准备好，再考虑由所有者手动创建固定生产入口。不要把任何 API Key 或 Netlify 登录凭据发进聊天。
 
