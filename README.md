@@ -91,7 +91,7 @@ node local-api/server.mjs
 开发和验收使用本机模拟服务，不需要 GitHub Actions 或真实付费 API：
 
 ```bash
-node --test tests/api-bridge.test.mjs
+node --test tests/api-*.test.mjs
 ```
 
 此功能只属于 **公开版的独立网页版**。它不使用、不连接也不包含作者的私人 ChatGPT Site、g-mind、私人记忆或密钥。
