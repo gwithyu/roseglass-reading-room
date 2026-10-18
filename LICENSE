@@ -1,21 +1,51 @@
-MIT License
+# Roseglass Reading Room — Personal Non-Commercial, No-Derivatives License
+# Roseglass 共读室 — 仅限个人非商业使用、禁止修改与衍生作品
 
-Copyright (c) 2026 Roseglass Reading Room contributors
+Copyright (c) 2026 Roseglass Reading Room copyright holders.
+All rights reserved. 保留所有权利。
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+## 1. Scope / 适用范围
+These terms apply to original Roseglass Reading Room application code, UI, documentation, and other original materials in this repository, **only to the extent the relevant copyright holders are entitled to license them**. Separately licensed third-party components and assets are **not** relicensed by this file; see THIRD_PARTY_NOTICES.md.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+本许可仅适用于仓库中有权利人有权授权的 Roseglass 原创应用代码、界面、文档及原创材料。PDF.js、Tesseract 等第三方组件和素材继续适用各自许可；本文件不改变第三方许可证。详见 THIRD_PARTY_NOTICES.md。
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+## 2. Limited permission / 有限许可
+An individual may download and run an **unmodified** copy of the original Roseglass materials solely for that individual's **private, personal, non-commercial** reading and study. Copies strictly necessary for local installation, execution, build, or personal backup are permitted, provided all copyright and license notices are retained. Local configuration of credentials, addresses, or host IDs solely to run an otherwise unmodified private installation is permitted; this is not permission to alter the product's source code, interface, or functionality.
+
+个人可以下载并运行**未修改**的 Roseglass 原创材料，且**只能用于本人私人、非商业的阅读与学习**。允许为本地安装、运行、必要构建及个人备份制作所需副本，但必须保留版权及许可声明。仅为运行未经修改的私人实例而填写本地凭据、地址或宿主 ID 等配置是允许的；这不代表可以修改产品源码、界面或功能。
+
+## 3. Restrictions / 禁止事项
+Except where mandatory law permits an activity or the relevant copyright holder grants prior written permission, you may NOT:
+
+- Modify, adapt, translate, refactor, or create derivative works from the original Roseglass materials, including modified private versions.
+- Redistribute, republish, upload, sublicense, share, or provide copies or derivative versions to other people, whether for free or for payment.
+- Sell, monetize, commercially exploit, or use Roseglass in paid products, paid services, business operations, or other commercial activities.
+- Operate a publicly accessible or multi-user hosted instance or package Roseglass into another distributed product.
+- Remove or obscure ownership, copyright, or licensing notices.
+
+除法律强制允许或取得相关著作权人**事先书面许可**外，**不得**：
+
+- 对 Roseglass 原创内容进行二次修改、改编、翻译、重构或制作衍生版本，即使仅在私人设备中使用。
+- 以免费或收费形式向他人分发、再发布、分享、再许可本项目或其修改版本。
+- 将项目用于任何商业用途，包括出售、收费服务、商业经营、付费产品或商业集成。
+- 对公众开放托管服务、搭建多人共享实例，或将项目打包进对外分发的其他产品。
+- 删除或遮盖版权及许可声明。
+
+A GitHub platform feature that technically permits viewing or forking does not grant additional rights to modify, distribute, or commercialize the work beyond applicable GitHub terms and existing licenses.
+
+GitHub 平台允许的查看、Fork 等技术操作，不代表额外取得修改、分发或商业使用的授权；平台条款及既有有效许可仍应适用。
+
+## 4. Existing MIT releases / 历史 MIT 授权
+Earlier copies and releases of Roseglass that were validly obtained under the MIT License retain the rights granted by that license; **this change is prospective and does not retroactively revoke existing MIT permissions**. If any material is owned by contributors or third parties, their applicable rights and licenses also remain unaffected.
+
+此前已合法依 MIT License 获取的副本和历史发布版本，继续享有该 MIT 许可证授予的权利；**本次变更仅向后生效，不会追溯撤销已经授予的 MIT 权限**。其他贡献者及第三方权利不受此变更影响。
+
+## 5. Permission requests / 另行授权
+For modification, redistribution, commercial use, or public hosting of content governed by these terms, obtain written permission from the relevant copyright holder(s) first.
+
+如需修改、再发布、商业使用或公开部署受本许可限制的内容，应事先取得相关著作权人的书面许可。
+
+## 6. No warranty / 免责声明
+THE ORIGINAL ROSEGLASS MATERIALS ARE PROVIDED "AS IS", WITHOUT WARRANTIES OF ANY KIND, TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW.
+
+Roseglass 原创材料按现状提供，在法律允许的最大范围内不提供任何保证。
