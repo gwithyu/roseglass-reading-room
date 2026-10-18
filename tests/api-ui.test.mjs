@@ -183,3 +183,35 @@ test('closing AI panel during pending health probe cannot reopen or initialize a
   assert.equal(nodes['ai-provider'].value,'ollama','stale health response must not switch provider');
   assert.deepEqual(calls.map(x=>x.url),['/api/health']);
 });
+
+test('cancelled PDF extraction unlocks new provider immediately without releasing a newer send',async(t)=>{
+  const oldDoc=globalThis.document,oldFetch=globalThis.fetch;
+  t.after(()=>{globalThis.document=oldDoc;globalThis.fetch=oldFetch;});
+  const finishPage=[];
+  const {nodes,calls}=fakeBrowser('pages-byok',{getContext:()=>new Promise(resolve=>finishPage.push(resolve))});
+  await nodes['open-ai'].trigger('click');
+  nodes['ai-question'].value='讲解本页';
+  nodes['ai-api-key'].value='old-deepseek-key-123';
+  nodes['ai-cloud-consent'].checked=true;
+  const oldSend=nodes['ai-send'].trigger('click');
+  assert.equal(nodes['ai-send'].disabled,true,'old capture locks its own session');
+  nodes['ai-provider'].value='openai';
+  await nodes['ai-provider'].trigger('change');
+  assert.equal(nodes['ai-send'].disabled,false,'switching providers unlocks without waiting for stale PDF');
+  nodes['ai-api-key'].value='new-openai-key-456';
+  nodes['ai-cloud-consent'].checked=true;
+  const newSend=nodes['ai-send'].trigger('click');
+  assert.equal(finishPage.length,2,'fresh session starts while stale capture remains unresolved');
+  assert.equal(nodes['ai-send'].disabled,true,'fresh capture locks button');
+  finishPage[0]({documentKey:'doc',text:'stale PDF page',image:null});
+  await oldSend;
+  assert.equal(nodes['ai-send'].disabled,true,'old finally must never unlock active fresh session');
+  finishPage[1]({documentKey:'doc',text:'new PDF page',image:null});
+  await newSend;
+  const aiCalls=calls.filter(c=>c.url==='/api/chat');
+  assert.equal(aiCalls.length,1,'stale capture never invokes the paid AI API');
+  const packet=JSON.parse(aiCalls[0].options.body);
+  assert.equal(packet.provider,'openai');
+  assert.equal(packet.key,'new-openai-key-456');
+  assert.equal(nodes['ai-send'].disabled,false,'fresh task owns its own final cleanup');
+});
