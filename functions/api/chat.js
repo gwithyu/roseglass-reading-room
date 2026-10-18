@@ -44,7 +44,7 @@ export function validateRequest(payload){
   ];
   return {provider,model,key,messages:cleaned};
 }
-export async function handleChat(request,{fetchImpl=fetch}={}){
+export async function handleChat(request,{fetchImpl=fetch,timeoutMs=UPSTREAM_TIMEOUT_MS}={}){
   if(request.method!=='POST')return answer(405,{error:'仅允许 POST'});
   const origin=request.headers.get('Origin');
   if(!origin||origin!==new URL(request.url).origin)return answer(403,{error:'请求来源不受信任'});
@@ -63,11 +63,15 @@ export async function handleChat(request,{fetchImpl=fetch}={}){
   catch{return answer(400,{error:'JSON 格式无效'});}
   let input;
   try{input=validateRequest(payload);}
-  catch(error){return answer(400,{error:String(error.message||'请求无效').slice(0,140)});}
-  let upstream;
+  catch(error){return answer(400,{error:String(error.mess  // Keep the abort timer active until the entire model response body has been read,
+  // not just until the server returns HTTP response headers. A slow response stream
+  // must never bypass the Netlify synchronous-function execution budget.
+  const controller=new AbortController();
+  const duration=Number.isFinite(timeoutMs)&&timeoutMs>0
+    ?Math.min(timeoutMs,UPSTREAM_TIMEOUT_MS):UPSTREAM_TIMEOUT_MS;
+  const timeout=setTimeout(()=>controller.abort(),duration);
   try{
-    const controller=new AbortController();
-    const timeout=setTimeout(()=>controller.abort(),UPSTREAM_TIMEOUT_MS);
+    let upstream;
     try{
       upstream=await fetchImpl(input.provider.url,{
         method:'POST',
@@ -75,15 +79,23 @@ export async function handleChat(request,{fetchImpl=fetch}={}){
         body:JSON.stringify({model:input.model,messages:input.messages,max_tokens:1200,stream:false}),
         redirect:'error',signal:controller.signal
       });
-    }finally{clearTimeout(timeout);}
-  }catch{return answer(502,{error:'连接 AI 服务商失败；请确认该服务在当前地区可用'});}
-  if(!upstream.ok)return answer(502,{error:`AI 服务商返回 HTTP ${upstream.status}。请核对 Key、模型及账户额度`});
-  try{
-    const json=await upstream.json();
+    }catch{
+      return controller.signal.aborted
+        ?answer(504,{error:'AI 服务商响应超时；请求若已到达服务商，可能计费'})
+        :answer(502,{error:'连接 AI 服务商失败；请确认该服务在当前地区可用'});
+    }
+    if(!upstream.ok)return answer(502,{error:`AI 服务商返回 HTTP ${upstream.status}。请核对 Key、模型及账户额度`});
+    let json;
+    try{json=await upstream.json();}
+    catch{
+      return controller.signal.aborted
+        ?answer(504,{error:'AI 服务商响应超时；请求若已到达服务商，可能计费'})
+        :answer(502,{error:'服务商响应格式不兼容'});
+    }
     const content=json?.choices?.[0]?.message?.content;
-    if(typeof content!=='string'||!content.trim())throw Error('empty');
+    if(typeof content!=='string'||!content.trim())return answer(502,{error:'服务商响应格式不兼容'});
     return answer(200,{answer:content.slice(0,20_000)});
-  }catch{return answer(502,{error:'服务商响应格式不兼容'});}
+  }finally{clearTimeout(timeout);}er(502,{error:'服务商响应格式不兼容'});}
 }
 export async function onRequestPost({request}){return handleChat(request);}
 export function onRequestGet(){return answer(405,{error:'仅允许 POST'});}
