@@ -10,3 +10,5 @@ node_modules/
 *.sqlite*
 private/
 secrets/
+# Generated public-only Cloudflare Pages output
+dist-public/
