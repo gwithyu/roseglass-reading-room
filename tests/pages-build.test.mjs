@@ -38,7 +38,7 @@ test('hosted BYOK bundle contains no remote PPTX module or private server code',
     for(const ent of await readdir(dir,{withFileTypes:true})){
       const file=resolve(dir,ent.name);
       if(ent.isDirectory())await files(file);
-      else if(/\\.(?:mjs|js)$/.test(ent.name))seen.push(file);
+      else if(/\.(?:mjs|js)$/.test(ent.name))seen.push(file);
     }
   };
   await files(resolve(dist,'src'));
@@ -46,7 +46,7 @@ test('hosted BYOK bundle contains no remote PPTX module or private server code',
   for(const file of seen){
     const code=await readFile(file,'utf8');
     // Each source line: import {x} from './x.mjs' or import './x.js'.
-    const importLine=/(?:^|\\n)\\s*import\\s+(?:[^;\\n]*?\\s+from\\s+)?['"]([.][^'"]+)['"]/g;
+    const importLine=/(?:^|\n)\s*import\s+(?:[^;\n]*?\s+from\s+)?['"]([.][^'"]+)['"]/g;
     for(const [,rel] of code.matchAll(importLine)){
       const target=resolve(dirname(file),rel);
       assert.ok((await stat(target)).isFile(),`Missing browser module ${rel} imported by ${file}`);
@@ -54,7 +54,7 @@ test('hosted BYOK bundle contains no remote PPTX module or private server code',
     }
   }
   assert.ok(checked>=5,'browser build must include its referenced modules');
-  const moduleSrc=(html.match(/<script\\s+type="module"\\s+src="([^"]+)"/g)||[]);
+  const moduleSrc=(html.match(/<script\s+type="module"\s+src="([^"]+)"/g)||[]);
   assert.equal(moduleSrc.length,1,'one explicit local app module, no inline or third-party scripts');
   assert.ok((await stat(resolve(dist,'src/app.js'))).isFile());
   assert.ok((await stat(resolve(dist,'src/styles.css'))).isFile());
