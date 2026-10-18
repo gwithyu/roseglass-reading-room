@@ -23,13 +23,9 @@ if command -v git >/dev/null 2>&1 && git rev-parse --is-inside-work-tree >/dev/n
   fi
 fi
 
-echo '=== Offline tests (zero paid model calls, zero GitHub Actions) ==='
-node --test \
-  tests/invite-links.test.mjs \
-  tests/api-ui.test.mjs \
-  tests/pages-byok.test.mjs \
-  tests/netlify-byok.test.mjs \
-  tests/pages-build.test.mjs
+echo '=== Complete standalone reader test suite (zero paid model calls, zero GitHub Actions) ==='
+node --test tests/*.test.mjs
+node tests/smoke.mjs
 
 echo '=== Build public-only files ==='
 node scripts/build-public.mjs
