@@ -14,7 +14,7 @@ export function initAiChat({getContext,notice=()=>{}}){
   const image=$('ai-image'),cloudConsent=$('ai-cloud-consent');
   const keyInput=$('ai-api-key'),keyWrap=$('ai-key-wrap');
   let conversation=[],currentDocument=null,working=false,mode=null;
-  let sessionVersion=0,activeAbort=null;
+  let sessionVersion=0,activeTask=null;
 
   const clearHistory=()=>{
     conversation=[];currentDocument=null;history.replaceChildren();
@@ -26,7 +26,11 @@ export function initAiChat({getContext,notice=()=>{}}){
   };
   const invalidateRequest=()=>{
     sessionVersion++;
-    if(activeAbort)activeAbort.abort();
+    const previous=activeTask;
+    activeTask=null;
+    if(previous?.controller)previous.controller.abort();
+    // A stale PDF extraction may keep running, but must not lock a fresh session.
+    working=false;send.disabled=false;
   };
   const updateProvider=()=>{
     invalidateRequest();
@@ -102,6 +106,8 @@ export function initAiChat({getContext,notice=()=>{}}){
       status.textContent='请输入你自己的有效 API Key；本页面不会保存密钥。';return;
     }
     working=true;send.disabled=true;status.textContent='正在整理当前页…';
+    const task={session:selectedSession,controller:null};
+    activeTask=task;
     let timeout=null;
     try{
       const page=await getContext({includeImage:selectedImage});
@@ -115,7 +121,7 @@ export function initAiChat({getContext,notice=()=>{}}){
       const request={provider:selectedProvider,model:selectedModel,messages,image:page.image||null};
       if(selectedMode==='pages-byok')request.key=key;
       const controller=new AbortController();
-      activeAbort=controller;
+      task.controller=controller;
       timeout=setTimeout(()=>controller.abort(),55_000);
       const response=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},cache:'no-store',referrerPolicy:'no-referrer',signal:controller.signal,body:JSON.stringify(request)});
       const data=await response.json();
@@ -132,7 +138,8 @@ export function initAiChat({getContext,notice=()=>{}}){
     }
     finally{
       if(timeout!==null)clearTimeout(timeout);
-      activeAbort=null;working=false;send.disabled=false;
+      // An old job must never unlock the Send button of a newer active job.
+      if(activeTask===task){activeTask=null;working=false;send.disabled=false;}
     }
   });
   updateProvider();
