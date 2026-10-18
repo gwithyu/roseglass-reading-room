@@ -66,3 +66,15 @@
 .vision-actions .vision-primary{background:rgba(236,188,180,.45)}
 .vision-disclaimer{color:var(--sub);font-size:11px;line-height:1.55;margin:10px 3px 0}
 @media(max-width:700px){.vision-panel{top:62px;right:9px;width:calc(100vw - 18px);max-height:calc(100vh - 140px);padding:12px}.vision-actions button{flex-basis:34%}}
+
+/* Public-only optional AI chat. The original full-size reader remains unchanged. */
+.ai-panel{position:fixed;z-index:30;right:18px;top:84px;bottom:88px;width:min(420px,calc(100vw - 36px));border-radius:22px;padding:16px;display:flex;flex-direction:column;gap:10px;min-height:0;background:rgba(48,37,43,.94);color:var(--text)}
+.ai-head{display:flex;justify-content:space-between;align-items:center;gap:12px}.ai-head div{display:flex;flex-direction:column;gap:4px}.ai-head strong{font-size:13px;letter-spacing:.17em}.ai-head small{font-size:11px;color:var(--sub)}
+.ai-config{display:grid;grid-template-columns:1fr;gap:6px}.ai-config label{font-size:11px;color:var(--sub)}.ai-config input:not([type=checkbox]),.ai-config select,.ai-panel textarea{width:100%;background:rgba(255,255,255,.09);color:var(--text);border:1px solid var(--edge);border-radius:10px;padding:9px 10px;font-size:12px;outline-offset:2px}
+.ai-config select option{background:#30272e;color:#f9f3f1}.ai-config .ai-check{display:flex;align-items:center;gap:8px;line-height:1.4;padding-top:4px;font-size:11px;color:#f4d4cf}.ai-check input{accent-color:#e6b3b0}
+.ai-messages{flex:1;min-height:72px;overflow:auto;display:flex;flex-direction:column;gap:8px;border-radius:14px;background:rgba(0,0,0,.13);padding:12px}
+.ai-bubble{font-size:12px;line-height:1.7;white-space:pre-wrap;overflow-wrap:anywhere;margin:0;padding:10px 12px;border-radius:12px;background:rgba(255,255,255,.08)}
+.ai-bubble.user{background:rgba(210,157,159,.24);align-self:flex-end;max-width:94%}.ai-bubble.assistant{align-self:stretch}
+.ai-panel textarea{resize:vertical;min-height:70px;max-height:145px}.ai-controls{display:flex;gap:8px;justify-content:space-between;align-items:center}
+.ai-controls .bottom-button{height:36px}.ai-status,.ai-disclaimer{margin:0;color:var(--sub);font-size:11px;line-height:1.5}.ai-status{color:#f3d9d4}.ai-disclaimer{opacity:.85}
+@media(max-width:700px){.ai-panel{inset:70px 9px 66px;width:auto;padding:12px;border-radius:16px}.ai-messages{min-height:60px}}
