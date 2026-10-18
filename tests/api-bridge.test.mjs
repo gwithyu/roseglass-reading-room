@@ -24,7 +24,7 @@ test('image reaches only vision providers; mocked upstream avoids all API charge
 });
 test('local-only HTTP server blocks cross-origin and uses only server-side keys',async(t)=>{
   const port=18787;
-  const server=await startServer({port,keys:{openai:'server-secret-1234'},fetchImpl:async(url,opts)=>{
+  const server=await startServer({port,cloudEnabled:true,keys:{openai:'server-secret-1234'},fetchImpl:async(url,opts)=>{
     if(url.includes('openai.com')) assert.equal(opts.headers.Authorization,'Bearer server-secret-1234');
     return {ok:true,json:async()=>({choices:[{message:{content:'mocked'}}]})};
   }});
@@ -40,4 +40,15 @@ test('local-only HTTP server blocks cross-origin and uses only server-side keys'
   assert.equal((await cloud.json()).answer,'mocked');
   const code=await fetch(base+'/local-api/server.mjs');assert.equal(code.status,404);
   const index=await fetch(base+'/');assert.equal(index.status,200);
+});
+
+test('paid cloud requests are blocked by default even if a key exists',async(t)=>{
+  const port=18789;
+  let upstreamCalls=0;
+  const server=await startServer({port,cloudEnabled:false,keys:{openai:'server-secret-1234'},fetchImpl:async()=>{upstreamCalls++;throw Error('MUST NOT CALL');}});
+  t.after(()=>new Promise(resolve=>server.close(resolve)));
+  const result=await fetch(`http://127.0.0.1:${port}/api/chat`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({provider:'openai',model:'gpt-4.1-mini',messages:[{role:'user',content:'hello'}]})});
+  assert.equal(result.status,403);
+  assert.match((await result.json()).error,/默认关闭/);
+  assert.equal(upstreamCalls,0);
 });
