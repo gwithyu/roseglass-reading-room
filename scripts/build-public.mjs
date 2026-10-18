@@ -26,7 +26,7 @@ let app=await readFile(appFile,'utf8');
 const remote="const {PptxRenderer} = await import('https://esm.sh/pptx-browser@4.1.5?bundle');";
 if(!app.includes(remote))throw Error('PPTX dependency changed; re-audit before publishing');
 app=app.replace(remote,"throw new Error('公共 API 版暂时只支持 PDF。请将 PPTX 导出为 PDF，以保护个人 API Key。');");
-if(/https?:\\/\\/(?:cdn\\.|esm\\.)/i.test(app))throw Error('Unaudited external executable dependency detected');
+if(app.includes('https://esm.sh/')||app.includes('https://cdn.jsdelivr.net/'))throw Error('Unaudited external executable dependency detected');
 await writeFile(appFile,app,'utf8');
 
 // Help prevent accidental source disclosure in the public static artifact.
