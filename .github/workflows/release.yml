@@ -14,6 +14,34 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Verify restrictive Roseglass license and release metadata
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          def read(path):
+              return Path(path).read_text(encoding="utf-8")
+
+          license_text = read("LICENSE")
+          readme = read("README.md")
+          mcp_readme = read("mcp-reader/README.md")
+          notices = read("THIRD_PARTY_NOTICES.md")
+          pkg = json.loads(read("mcp-reader/package.json"))
+          lock = json.loads(read("mcp-reader/package-lock.json"))
+          version = read("RELEASE_VERSION").strip()
+          assert "Personal Non-Commercial, No-Derivatives License" in license_text, "Incorrect application license"
+          assert "may NOT" in license_text and "Modify, adapt" in license_text, "No-derivatives ban missing"
+          assert "Sell, monetize" in license_text, "Noncommercial restriction missing"
+          assert "does not retroactively revoke" in license_text, "Historical MIT caveat missing"
+          assert "禁止二次修改" in readme and "商用" in readme, "README license banner missing"
+          assert "no-derivatives" in mcp_readme.lower(), "MCP documentation license notice missing"
+          assert "Third-party" in notices and "Apache-2.0" in notices, "Third-party notices missing"
+          assert pkg.get("license") == "SEE LICENSE IN ../LICENSE", "Package license metadata mismatch"
+          assert lock["packages"][""].get("license") == pkg["license"], "Lockfile license metadata mismatch"
+          assert version == pkg["version"] == lock["version"] == lock["packages"][""]["version"], "Release and package versions differ"
+          print("License and version checks passed:", version)
+          PY
       - name: Test standalone reader
         run: node --test tests/*.test.mjs && node tests/smoke.mjs
       - name: Install MCP test dependencies
