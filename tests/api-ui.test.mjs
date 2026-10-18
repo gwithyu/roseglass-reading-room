@@ -15,7 +15,7 @@ test('API is never called until user explicitly submits, and browser never sends
     focus(){}
     click(){return this.trigger('click');}
   }
-  const ids=['ai-panel','open-ai','close-ai','ai-provider','ai-model','ai-question','ai-send','ai-messages','ai-status','ai-image','ai-reset'];
+  const ids=['ai-panel','open-ai','close-ai','ai-provider','ai-model','ai-question','ai-send','ai-messages','ai-status','ai-image','ai-reset','ai-cloud-consent'];
   const nodes=Object.fromEntries(ids.map(id=>[id,new Node()]));
   nodes['ai-provider'].value='ollama';
   globalThis.document={getElementById:id=>nodes[id],createElement:()=>new Node()};
@@ -38,4 +38,12 @@ test('API is never called until user explicitly submits, and browser never sends
   assert.equal(nodes['ai-messages'].children.length,2);
   await nodes['ai-reset'].trigger('click');
   assert.equal(nodes['ai-messages'].children.length,0);
+  nodes['ai-provider'].value='openai';
+  await nodes['ai-provider'].trigger('change');
+  nodes['ai-question'].value='Should not send with no consent';
+  await nodes['ai-send'].trigger('click');
+  assert.equal(calls.filter(c=>c.url==='/api/chat').length,1,'cloud should be blocked without consent');
+  nodes['ai-cloud-consent'].checked=true;
+  await nodes['ai-send'].trigger('click');
+  assert.equal(calls.filter(c=>c.url==='/api/chat').length,2,'cloud only after consent');
 });
