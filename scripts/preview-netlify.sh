@@ -35,7 +35,7 @@ echo '=== Bundle Netlify API Functions locally before asking to deploy ==='
 FN_CHECK_DIR="$(mktemp -d "${TMPDIR:-/tmp}/roseglass-functions-preflight.XXXXXX")"
 trap 'rm -rf "$FN_CHECK_DIR"' EXIT
 npx --yes netlify-cli@latest functions:build --src netlify/functions --functions "$FN_CHECK_DIR"
-if ! find "$FN_CHECK_DIR" -type f | grep -q .; then
+if [[ -z "$(find "$FN_CHECK_DIR" -type f -print -quit)" ]]; then
   echo 'Netlify produced no Function build artifacts; refusing to deploy.' >&2
   exit 1
 fi
