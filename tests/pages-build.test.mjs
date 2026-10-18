@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {readFile,stat} from 'node:fs/promises';
+import {readFile,stat,readdir} from 'node:fs/promises';
 import {spawnSync} from 'node:child_process';
 import {resolve,dirname} from 'node:path';
 import {fileURLToPath} from 'node:url';
@@ -31,4 +31,36 @@ test('hosted BYOK bundle contains no remote PPTX module or private server code',
   }
   await assert.rejects(stat(resolve(dist,'local-api/server.mjs')));
   await assert.rejects(stat(resolve(dist,'.github/workflows/release.yml')));
+  // Fail before publishing if a browser module imports a file absent from the output.
+  // A JavaScript parse check alone cannot detect these deployment-time 404 failures.
+  const seen=[];
+  const files=async dir=>{
+    for(const ent of await readdir(dir,{withFileTypes:true})){
+      const file=resolve(dir,ent.name);
+      if(ent.isDirectory())await files(file);
+      else if(/\\.(?:mjs|js)$/.test(ent.name))seen.push(file);
+    }
+  };
+  await files(resolve(dist,'src'));
+  let checked=0;
+  for(const file of seen){
+    const code=await readFile(file,'utf8');
+    // Each source line: import {x} from './x.mjs' or import './x.js'.
+    const importLine=/(?:^|\\n)\\s*import\\s+(?:[^;\\n]*?\\s+from\\s+)?['"]([.][^'"]+)['"]/g;
+    for(const [,rel] of code.matchAll(importLine)){
+      const target=resolve(dirname(file),rel);
+      assert.ok((await stat(target)).isFile(),`Missing browser module ${rel} imported by ${file}`);
+      checked++;
+    }
+  }
+  assert.ok(checked>=5,'browser build must include its referenced modules');
+  const moduleSrc=(html.match(/<script\\s+type="module"\\s+src="([^"]+)"/g)||[]);
+  assert.equal(moduleSrc.length,1,'one explicit local app module, no inline or third-party scripts');
+  assert.ok((await stat(resolve(dist,'src/app.js'))).isFile());
+  assert.ok((await stat(resolve(dist,'src/styles.css'))).isFile());
+  // The reader dynamically loads these, so static import checks cannot see them.
+  for(const path of ['mcp-reader/worker/vendor/pdf.min.mjs','mcp-reader/worker/vendor/pdf.worker.min.mjs']){
+    assert.ok((await stat(resolve(dist,path))).isFile(),`Missing browser PDF runtime ${path}`);
+  }
+
 });
