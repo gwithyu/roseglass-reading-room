@@ -215,3 +215,37 @@ test('cancelled PDF extraction unlocks new provider immediately without releasin
   assert.equal(packet.key,'new-openai-key-456');
   assert.equal(nodes['ai-send'].disabled,false,'fresh task owns its own final cleanup');
 });
+
+test('late upstream response cannot unlock or pollute a newer model request',async(t)=>{
+  const oldDoc=globalThis.document,oldFetch=globalThis.fetch;
+  t.after(()=>{globalThis.document=oldDoc;globalThis.fetch=oldFetch;});
+  const pending=[];
+  const {nodes,calls}=fakeBrowser('pages-byok',{chatFetch:(_url,options)=>
+    new Promise(resolve=>pending.push({resolve,signal:options.signal}))
+  });
+  await nodes['open-ai'].trigger('click');
+  nodes['ai-api-key'].value='own-api-key-123';
+  nodes['ai-question'].value='请讲解';
+  nodes['ai-cloud-consent'].checked=true;
+  const oldSend=nodes['ai-send'].trigger('click');
+  await Promise.resolve();
+  assert.equal(pending.length,1);
+  nodes['ai-model'].value='deepseek-reasoner';
+  await nodes['ai-model'].trigger('input');
+  assert.equal(pending[0].signal.aborted,true);
+  assert.equal(nodes['ai-send'].disabled,false,'new session must be ready immediately');
+  const newSend=nodes['ai-send'].trigger('click');
+  await Promise.resolve();
+  assert.equal(pending.length,2);
+  assert.equal(nodes['ai-send'].disabled,true);
+  // Simulate a slow server/transport that ignores an already-aborted fetch.
+  pending[0].resolve({ok:true,json:async()=>({answer:'stale answer'})});
+  await oldSend;
+  assert.equal(nodes['ai-send'].disabled,true,'old cleanup must not unlock current send');
+  assert.equal(nodes['ai-messages'].children.length,0,'old reply must not show in new session');
+  pending[1].resolve({ok:true,json:async()=>({answer:'fresh answer'})});
+  await newSend;
+  assert.equal(nodes['ai-send'].disabled,false);
+  assert.equal(nodes['ai-messages'].children.length,2,'only fresh exchange should display');
+  assert.equal(calls.filter(x=>x.url==='/api/chat').length,2,'test includes real simulated overlap');
+});
