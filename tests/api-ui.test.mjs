@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {initAiChat} from '../src/ai-chat.mjs';
 
-function fakeBrowser(mode,{imageData=null,getContext=null,chatFetch=null}={}){
+function fakeBrowser(mode,{imageData=null,getContext=null,chatFetch=null,healthFetch=null}={}){
   class Node{
     constructor(){
       this.handlers={};this.value='';this.children=[];this.checked=false;this.disabled=false;
@@ -23,7 +23,7 @@ function fakeBrowser(mode,{imageData=null,getContext=null,chatFetch=null}={}){
   globalThis.document={getElementById:id=>nodes[id],createElement:()=>new Node()};
   globalThis.fetch=async (url,options)=>{
     calls.push({url,options});
-    if(url==='/api/health')return {ok:true,json:async()=>({mode})};
+    if(url==='/api/health')return healthFetch?healthFetch(url,options):{ok:true,json:async()=>({mode})};
     if(url==='/api/chat')return chatFetch?chatFetch(url,options):{ok:true,json:async()=>({answer:'模拟回答'})};
     throw Error('unexpected route');
   };
@@ -168,4 +168,18 @@ test('editing model during in-flight request cancels old response',async(t)=>{
   deliver({ok:true,json:async()=>({answer:'旧模型的回复'})});
   await sending;
   assert.equal(nodes['ai-messages'].children.length,0);
+});
+
+test('closing AI panel during pending health probe cannot reopen or initialize a stale cloud session',async(t)=>{
+  const oldDoc=globalThis.document,oldFetch=globalThis.fetch;
+  t.after(()=>{globalThis.document=oldDoc;globalThis.fetch=oldFetch;});
+  let resolveHealth;
+  const {nodes,calls}=fakeBrowser('pages-byok',{healthFetch:()=>new Promise(resolve=>{resolveHealth=resolve;})});
+  const opening=nodes['open-ai'].trigger('click');
+  assert.equal(typeof resolveHealth,'function');
+  await nodes['close-ai'].trigger('click');
+  resolveHealth({ok:true,json:async()=>({mode:'pages-byok'})});
+  await opening;
+  assert.equal(nodes['ai-provider'].value,'ollama','stale health response must not switch provider');
+  assert.deepEqual(calls.map(x=>x.url),['/api/health']);
 });
