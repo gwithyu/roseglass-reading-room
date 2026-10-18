@@ -512,6 +512,21 @@ $('search-go').onclick=search;ui.search.onkeydown=e=>{if(e.key==='Enter')search(
 $('reset-reading').onclick=()=>resetReadingPosition().catch(e=>notice('重置失败：'+e.message));
 $('save-note').onclick=addNote;
 $('bookmark-current').onclick=bookmark;$('copy-context').onclick=()=>copyPacket().catch(e=>notice(e.message));
+const PUBLIC_AI_CHATS=Object.freeze({
+  chatgpt:'https://chatgpt.com/',
+  deepseek:'https://chat.deepseek.com/',
+  kimi:'https://www.kimi.com/',
+  doubao:'https://www.doubao.com/'
+});
+$('handoff-ai').onclick=()=>{
+  if(state.kind==='demo')return notice('请先打开 PDF 或 PPTX 再选择 AI');
+  const target=PUBLIC_AI_CHATS[$('handoff-provider').value];
+  if(!target)return notice('请选择自己的 AI');
+  // Open in the direct click handler; browsers generally block popups opened after awaits.
+  const opened=window.open(target,'_blank','noopener,noreferrer');
+  sendCurrent().catch(e=>notice('图文准备失败：'+e.message));
+  if(!opened)console.info('AI browser tab may require popup permission or manual opening:',target);
+};
 $('send-chat').onclick=()=>sendCurrent().catch(e=>notice('发送失败：'+e.message));
 $('export-image').onclick=()=>exportCurrentImage().catch(e=>notice('图片导出失败：'+e.message));
 $('toggle-vision-test').onclick=()=>{const panel=$('vision-panel');panel.classList.toggle('hidden');if(!panel.classList.contains('hidden')&&!visionSequence)makeNewVisionChallenge();};
