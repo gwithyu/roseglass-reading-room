@@ -61,7 +61,8 @@ test('preview helper cannot perform accidental production deployment',async()=>{
   assert.match(script,/node --test/);
   assert.match(script,/scripts\/build-public\.mjs/);
   assert.match(script,/read -r -p .*YES/);
-  assert.match(script,/--allow-anonymous/);
+  assert.doesNotMatch(script,/--allow-anonymous/);
+  assert.match(script,/Netlify Functions require an authenticated Netlify account/);
   assert.match(script,/--no-build/);
   assert.doesNotMatch(script,/(?:^|[\s])--prod(?:\s|$)/m);
 });
