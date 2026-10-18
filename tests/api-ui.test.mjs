@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {initAiChat} from '../src/ai-chat.mjs';
 
-function fakeBrowser(mode,{imageData=null,getContext=null,chatFetch=null,healthFetch=null}={}){
+function fakeBrowser(mode,{imageData=null,getContext=null,chatFetch=null,healthFetch=null,getActiveDocumentKey=()=>null}={}){
   class Node{
     constructor(){
       this.handlers={};this.value='';this.children=[];this.checked=false;this.disabled=false;
@@ -20,14 +20,19 @@ function fakeBrowser(mode,{imageData=null,getContext=null,chatFetch=null,healthF
   const nodes=Object.fromEntries(ids.map(id=>[id,new Node()]));
   nodes['ai-provider'].value='ollama';
   const calls=[];
-  globalThis.document={getElementById:id=>nodes[id],createElement:()=>new Node()};
+  const documentEvents=new Map();
+  globalThis.document={
+    getElementById:id=>nodes[id],createElement:()=>new Node(),
+    addEventListener:(event,fn)=>documentEvents.set(event,fn),
+    dispatchEvent:event=>documentEvents.get(event.type)?.(event)
+  };
   globalThis.fetch=async (url,options)=>{
     calls.push({url,options});
     if(url==='/api/health')return healthFetch?healthFetch(url,options):{ok:true,json:async()=>({mode})};
     if(url==='/api/chat')return chatFetch?chatFetch(url,options):{ok:true,json:async()=>({answer:'模拟回答'})};
     throw Error('unexpected route');
   };
-  initAiChat({getContext:getContext||async()=>({documentKey:'lecture1',text:'第一页公式',image:imageData})});
+  initAiChat({getActiveDocumentKey,getContext:getContext||async()=>({documentKey:'lecture1',text:'第一页公式',image:imageData})});
   return {nodes,calls};
 }
 test('local mode never includes API keys and does not call AI on opening',async(t)=>{
@@ -248,4 +253,55 @@ test('late upstream response cannot unlock or pollute a newer model request',asy
   assert.equal(nodes['ai-send'].disabled,false);
   assert.equal(nodes['ai-messages'].children.length,2,'only fresh exchange should display');
   assert.equal(calls.filter(x=>x.url==='/api/chat').length,2,'test includes real simulated overlap');
+});
+
+test('opening another PDF during old text extraction cancels request before forwarding key',async(t)=>{
+  const prevDocument=globalThis.document,prevFetch=globalThis.fetch;
+  t.after(()=>{globalThis.document=prevDocument;globalThis.fetch=prevFetch;});
+  let resolvePDF,activePDF='pdf-A';
+  const {nodes,calls}=fakeBrowser('pages-byok',{
+    getActiveDocumentKey:()=>activePDF,
+    getContext:()=>new Promise(resolve=>{resolvePDF=resolve;})
+  });
+  await nodes['open-ai'].trigger('click');
+  nodes['ai-api-key'].value='user-key-123456';
+  nodes['ai-question'].value='讲解 PDF A';
+  nodes['ai-cloud-consent'].checked=true;
+  const old=nodes['ai-send'].trigger('click');
+  activePDF='pdf-B';
+  globalThis.document.dispatchEvent({type:'roseglass:document-changed'});
+  assert.equal(nodes['ai-send'].disabled,false,'new PDF immediately unlocks AI controls');
+  assert.equal(nodes['ai-question'].value,'','question from PDF A is cleared');
+  resolvePDF({documentKey:'pdf-A',text:'PDF A text',image:null});
+  await old;
+  assert.deepEqual(calls.map(c=>c.url),['/api/health'],'PDF A must not send a request after PDF B loads');
+  assert.equal(nodes['ai-messages'].children.length,0,'no PDF A answer may appear in PDF B');
+});
+
+test('opening another PDF while AI is in flight aborts A and rejects late answer in B',async(t)=>{
+  const prevDocument=globalThis.document,prevFetch=globalThis.fetch;
+  t.after(()=>{globalThis.document=prevDocument;globalThis.fetch=prevFetch;});
+  let activePDF='pdf-A',deliver,signal;
+  const {nodes}=fakeBrowser('pages-byok',{
+    getActiveDocumentKey:()=>activePDF,
+    chatFetch:(_url,options)=>{
+      signal=options.signal;
+      return new Promise(resolve=>{deliver=resolve;});
+    }
+  });
+  await nodes['open-ai'].trigger('click');
+  nodes['ai-api-key'].value='user-key-123456';
+  nodes['ai-question'].value='讲解 PDF A';
+  nodes['ai-cloud-consent'].checked=true;
+  const old=nodes['ai-send'].trigger('click');
+  await Promise.resolve();
+  assert.equal(typeof deliver,'function');
+  activePDF='pdf-B';
+  globalThis.document.dispatchEvent({type:'roseglass:document-changed'});
+  assert.equal(signal.aborted,true,'in-flight PDF A request must be cancelled');
+  assert.equal(nodes['ai-send'].disabled,false);
+  deliver({ok:true,json:async()=>({answer:'PDF A 的迟到讲解'})});
+  await old;
+  assert.equal(nodes['ai-messages'].children.length,0);
+  assert.equal(nodes['ai-question'].value,'');
 });
