@@ -64,5 +64,7 @@ test('preview helper cannot perform accidental production deployment',async()=>{
   assert.doesNotMatch(script,/--allow-anonymous/);
   assert.match(script,/Netlify Functions require an authenticated Netlify account/);
   assert.match(script,/--no-build/);
+  assert.match(script,/functions:build --src netlify\/functions --functions/);
+  assert.ok(script.indexOf('functions:build')<script.indexOf('netlify-cli@latest deploy'),'netlify bundling must happen before deploy');
   assert.doesNotMatch(script,/(?:^|[\s])--prod(?:\s|$)/m);
 });
