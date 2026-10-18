@@ -5,6 +5,7 @@ import {buildTextChunks} from './segment-text.mjs';
 import {makePageImage,canvasPngBlob,samePageSnapshot,buildVisualPrompt,exportSize} from './visual-packet.mjs';
 import {relayImageToChat} from './chat-image-bridge.mjs';
 import {makeChallenge,paintChallenge,BLIND_PROMPT} from './vision-challenge.mjs';
+import {initAiChat} from './ai-chat.mjs';
 const $ = (id) => document.getElementById(id);
 const ui = {
   file: $('file-input'), open: $('open-file'), filename: $('filename'), kind: $('file-kind'),
@@ -523,6 +524,27 @@ ui.zoomRange.addEventListener('change',()=>setZoom('custom',Number(ui.zoomRange.
 ui.zoomPreset.addEventListener('change',()=>setZoom(ui.zoomPreset.value));
 $('fullscreen').onclick=async()=>{if(window.openai?.requestDisplayMode){try{await window.openai.requestDisplayMode({mode:'fullscreen'});return;}catch{}}if(!document.fullscreenElement)await document.documentElement.requestFullscreen?.();else await document.exitFullscreen?.();};
 document.addEventListener('keydown',e=>{if(/INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName||'') || document.activeElement?.isContentEditable)return;if(e.key==='ArrowRight'||e.key==='PageDown')go(state.page+1);if(e.key==='ArrowLeft'||e.key==='PageUp')go(state.page-1);if((e.metaKey||e.ctrlKey)&&e.key==='f'){e.preventDefault();ui.searchPanel.classList.remove('hidden');ui.search.focus();}});
+initAiChat({notice,getContext:async({includeImage})=>{
+  if(state.kind==='demo' || !state.fileKey)throw new Error('请先打开一份 PDF 或 PPTX');
+  const documentKey=state.fileKey, page=state.page, documentRef=state.document, pptRef=state.pptx;
+  const extracted=await pageText(page);
+  const unchanged=()=>documentKey===state.fileKey && page===state.page && documentRef===state.document && pptRef===state.pptx;
+  if(!unchanged())throw new Error('课件已切换，请重新发送');
+  const text=createPacket(extracted,page);
+  let image=null;
+  if(includeImage){
+    const visual=await captureVisualPage();
+    if(!unchanged() || visual.snapshot.page!==page)throw new Error('课件已切换，取消发送旧图像');
+    image=await new Promise((resolve,reject)=>{
+      const reader=new FileReader();
+      reader.onload=()=>resolve(String(reader.result));
+      reader.onerror=()=>reject(new Error('图片读取失败'));
+      reader.readAsDataURL(visual.blob);
+    });
+    if(!unchanged())throw new Error('课件已切换，取消发送旧图像');
+  }
+  return {documentKey,text,image};
+}});
 restoreZoom();updateZoomUI();renderDemo();
 let resizeTimer;new ResizeObserver(()=>{clearTimeout(resizeTimer);resizeTimer=setTimeout(()=>render(),110);}).observe(ui.viewport);
 let dragDepth=0;window.addEventListener('dragenter',e=>{if(!e.dataTransfer?.types?.includes('Files'))return;e.preventDefault();dragDepth++;$('drop-hint').classList.remove('hidden');});window.addEventListener('dragover',e=>{if(e.dataTransfer?.types?.includes('Files'))e.preventDefault();});window.addEventListener('dragleave',()=>{dragDepth--;if(dragDepth<=0){dragDepth=0;$('drop-hint').classList.add('hidden');}});window.addEventListener('drop',e=>{e.preventDefault();dragDepth=0;$('drop-hint').classList.add('hidden');loadFile(e.dataTransfer?.files?.[0]);});
