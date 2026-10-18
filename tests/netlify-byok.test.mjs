@@ -64,6 +64,15 @@ test('preview helper cannot perform accidental production deployment',async()=>{
   assert.match(script,/node --test/);
   assert.match(script,/scripts\/build-public\.mjs/);
   assert.match(script,/read -r -p .*YES/);
+  assert.ok(
+    script.indexOf('read -r -p') < script.indexOf('npx --yes netlify-cli@latest functions:build'),
+    'explicit YES gate must precede CLI download and build'
+  );
+  assert.ok(
+    script.indexOf('node tests/smoke.mjs') < script.indexOf('read -r -p'),
+    'complete standalone smoke suite must finish before network permission'
+  );
+  assert.match(script,/node --test tests\/\*\.test\.mjs/);
   assert.doesNotMatch(script,/--allow-anonymous/);
   assert.match(script,/Netlify Functions require an authenticated Netlify account/);
   assert.match(script,/--no-build/);
