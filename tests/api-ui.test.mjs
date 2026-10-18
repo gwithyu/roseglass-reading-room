@@ -128,3 +128,44 @@ test('changing provider during in-flight API call aborts and hides stale answer'
   assert.equal(nodes['ai-messages'].children.length,0,'must not append old reply to new provider session');
   assert.equal(nodes['ai-api-key'].value,'','the old key is erased');
 });
+
+test('editing API key while PDF capture is pending prevents forwarding the previously entered key',async(t)=>{
+  const oldDoc=globalThis.document,oldFetch=globalThis.fetch;
+  t.after(()=>{globalThis.document=oldDoc;globalThis.fetch=oldFetch;});
+  let resolvePage;
+  const {nodes,calls}=fakeBrowser('pages-byok',{getContext:()=>new Promise(resolve=>{resolvePage=resolve;})});
+  await nodes['open-ai'].trigger('click');
+  nodes['ai-api-key'].value='first-valid-api-key';
+  nodes['ai-cloud-consent'].checked=true;
+  nodes['ai-question'].value='解释这个图';
+  const sending=nodes['ai-send'].trigger('click');
+  nodes['ai-api-key'].value='second-valid-api-key';
+  await nodes['ai-api-key'].trigger('input');
+  resolvePage({documentKey:'lecture1',text:'第一页',image:null});
+  await sending;
+  assert.deepEqual(calls.map(c=>c.url),['/api/health']);
+  assert.equal(nodes['ai-messages'].children.length,0);
+});
+
+test('editing model during in-flight request cancels old response',async(t)=>{
+  const oldDoc=globalThis.document,oldFetch=globalThis.fetch;
+  t.after(()=>{globalThis.document=oldDoc;globalThis.fetch=oldFetch;});
+  let deliver;let signal;
+  const {nodes}=fakeBrowser('pages-byok',{chatFetch:async(_url,options)=>{
+    signal=options.signal;
+    return new Promise(resolve=>{deliver=resolve;});
+  }});
+  await nodes['open-ai'].trigger('click');
+  nodes['ai-api-key'].value='current-valid-api-key';
+  nodes['ai-cloud-consent'].checked=true;
+  nodes['ai-question'].value='解释这一页';
+  const sending=nodes['ai-send'].trigger('click');
+  await Promise.resolve();
+  assert.equal(typeof deliver,'function');
+  nodes['ai-model'].value='deepseek-reasoner';
+  await nodes['ai-model'].trigger('input');
+  assert.equal(signal.aborted,true);
+  deliver({ok:true,json:async()=>({answer:'旧模型的回复'})});
+  await sending;
+  assert.equal(nodes['ai-messages'].children.length,0);
+});
