@@ -37,7 +37,7 @@ Netlify 官方的同步函数上限是 **60 秒**，缓冲请求上限是 **6 MB
 bash scripts/preview-netlify.sh
 ```
 
-脚本会先在本地跑共读邀请、个人 API、Netlify、Pages 和静态构建相关测试。**任何失败都会直接停止，不会进行部署**。通过后还需要在终端手动输入 `YES` 才会运行 Netlify CLI。
+脚本会先清除继承到的站长个人 AI Key 环境变量，依次运行共读邀请、个人 API、Netlify、Pages 和静态构建相关测试，打包公开静态文件，并使用 Netlify CLI 的 `functions:build` **在本地预先打包后端函数**。**任何失败都会直接停止，不会进行部署**。全部通过后仍须在终端手动输入 `YES`，才会尝试创建草稿预览。运行打包检查需要联网取得 Netlify CLI，但不调用真实模型 API。
 
 **重要纠正：Netlify 官方明确要求使用 Serverless Functions 的项目必须有 Netlify 账户。** `--allow-anonymous` 只能用于不依赖 Functions 的静态临时站点，不适合 Roseglass 需要真正 AI 接口的共读室。因此这个脚本不使用匿名模式；所有者必须先在自己的电脑执行 `npx --yes netlify-cli@latest login` 并确认 Netlify Free（$0）方案，之后脚本才尝试创建带 Functions 的草稿预览。预览网址不是正式的固定生产入口。新创建的 Netlify 免费项目可能默认不可公开访问，需要在平台明确发布后才能作为 Jessica 的长期分享入口；不能把只供本人预览的地址当成已经公开。本站脚本不包含 `--prod`。
 
