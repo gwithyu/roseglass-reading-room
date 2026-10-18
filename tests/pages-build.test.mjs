@@ -17,6 +17,7 @@ test('hosted BYOK bundle contains no remote PPTX module or private server code',
   assert.doesNotMatch(app,/https:\/\/esm\.sh\//);
   assert.doesNotMatch(app,/https:\/\/cdn\.jsdelivr\.net\//);
   assert.match(app,/暂时只支持 PDF/);
+  assert.match(app,/getDocument\(\{data:new Uint8Array\(buffer\.slice\(0\)\),isEvalSupported:false\}\)/,'PDF.js dynamic evaluation must be disabled on BYOK hosted build');
   assert.match(html,/id="ai-api-key" type="password"/);
   assert.match(html,/id="invite-panel"/);
   assert.match(html,/accept=".pdf,application\/pdf"/);
