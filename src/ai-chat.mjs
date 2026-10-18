@@ -7,7 +7,7 @@ const PRESETS=Object.freeze({
   openai:{model:'gpt-4.1-mini',vision:true}
 });
 const $=id=>document.getElementById(id);
-export function initAiChat({getContext,notice=()=>{}}){
+export function initAiChat({getContext,getActiveDocumentKey=()=>null,notice=()=>{}}){
   const panel=$('ai-panel'),open=$('open-ai'),close=$('close-ai');
   const provider=$('ai-provider'),model=$('ai-model'),question=$('ai-question');
   const send=$('ai-send'),history=$('ai-messages'),status=$('ai-status');
@@ -80,6 +80,16 @@ export function initAiChat({getContext,notice=()=>{}}){
     if(e.key==='Escape')close.click();
     if((e.metaKey||e.ctrlKey)&&e.key==='Enter'){e.preventDefault();send.click();}
   });
+  // A newly opened PDF invalidates the previous document's AI conversation.
+  // Keep the user's chosen provider/Key, but never associate A's reply with PDF B.
+  if(typeof document.addEventListener==='function'){
+    document.addEventListener('roseglass:document-changed',()=>{
+      invalidateRequest();
+      clearHistory();
+      question.value='';
+      status.textContent='已打开新课件，旧讲解已取消；请针对当前 PDF 重新提问。';
+    });
+  }
   provider.addEventListener('change',updateProvider);
   // A different model or personal Key must not inherit in-flight requests or old chat context.
   model.addEventListener('input',()=>{invalidateRequest();clearHistory();});
@@ -101,6 +111,7 @@ export function initAiChat({getContext,notice=()=>{}}){
     const selectedProvider=provider.value,selectedModel=model.value.trim(),selectedMode=mode;
     const selectedImage=image.checked;
     const selectedSession=sessionVersion;
+    const documentAtStart=getActiveDocumentKey();
     const key=selectedMode==='pages-byok'?keyInput.value.trim():undefined;
     if(mode==='pages-byok'&&(!key||key.length<8)){
       status.textContent='请输入你自己的有效 API Key；本页面不会保存密钥。';return;
@@ -111,7 +122,7 @@ export function initAiChat({getContext,notice=()=>{}}){
     let timeout=null;
     try{
       const page=await getContext({includeImage:selectedImage});
-      if(selectedSession!==sessionVersion||selectedProvider!==provider.value||selectedModel!==model.value.trim()||selectedMode!==mode||
+      if(selectedSession!==sessionVersion||documentAtStart!==getActiveDocumentKey()||selectedProvider!==provider.value||selectedModel!==model.value.trim()||selectedMode!==mode||
         (selectedMode==='pages-byok'&&keyInput.value.trim()!==key))throw new Error('选项已变化，取消旧请求；没有发送 API Key。');
       if(selectedMode==='pages-byok'&&page.image&&page.image.length>4_300_000)throw new Error('当前页图像超过公开网站的大小限制。请取消「发送图片」后先用文字提问。');
       if(currentDocument!==page.documentKey){clearHistory();currentDocument=page.documentKey;}
@@ -125,7 +136,7 @@ export function initAiChat({getContext,notice=()=>{}}){
       timeout=setTimeout(()=>controller.abort(),55_000);
       const response=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},cache:'no-store',referrerPolicy:'no-referrer',signal:controller.signal,body:JSON.stringify(request)});
       const data=await response.json();
-      if(selectedSession!==sessionVersion) return; // stale response belongs to a cancelled session
+      if(selectedSession!==sessionVersion||documentAtStart!==getActiveDocumentKey())return; // stale reply after PDF change
       if(!response.ok)throw new Error(data?.error||`HTTP ${response.status}`);
       append('user',prompt);append('assistant',data.answer);
       conversation=[...messages,{role:'assistant',content:data.answer}].slice(-8);
