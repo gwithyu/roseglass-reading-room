@@ -3,6 +3,9 @@
 set -Eeuo pipefail
 cd "$(dirname "$0")/.."
 
+# Refuse to inherit the owner's personal AI credentials during ANY preflight or CLI command.
+unset OPENAI_API_KEY DEEPSEEK_API_KEY DASHSCOPE_API_KEY MOONSHOT_API_KEY CLOUDFLARE_API_TOKEN RG_TOKEN || true
+
 if ! command -v node >/dev/null 2>&1; then
   echo 'Node.js 22+ is required. Please install Node or run: nvm use 22' >&2; exit 1
 fi
@@ -53,8 +56,6 @@ if [[ "$ACK" != "YES" ]]; then
   exit 0
 fi
 
-# Avoid passing accidental owner AI tokens to the deployment CLI.
-unset OPENAI_API_KEY DEEPSEEK_API_KEY DASHSCOPE_API_KEY MOONSHOT_API_KEY CLOUDFLARE_API_TOKEN RG_TOKEN || true
 
 echo '=== Deploy DRAFT with functions (requires Netlify login + network + free credits) ==='
 npx --yes netlify-cli@latest deploy \
