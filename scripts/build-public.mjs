@@ -38,6 +38,10 @@ const visionHostButton='id="send-vision" class="soft-button vision-primary"';
 if(!html.includes(hostButton)||!html.includes(visionHostButton))throw Error('ChatGPT host buttons changed: re-audit hosted build');
 html=html.replace(hostButton,'id="send-chat" class="bottom-button primary hidden"');
 html=html.replace(visionHostButton,'id="send-vision" class="soft-button vision-primary hidden"');
+const multiFormat='accept=".pdf,.pptx,application/pdf,application/vnd.openxmlformats-officedocument.presentationml.presentation"';
+if(!html.includes(multiFormat))throw Error('File input changed: review PPTX boundary');
+html=html.replace(multiFormat,'accept=".pdf,application/pdf"').replaceAll('打开 PDF 或 PPTX','打开 PDF');
+
 await writeFile(resolve(dist,'index.html'),html,'utf8');
 await writeFile(resolve(dist,'_headers'),
   '/*\n  Referrer-Policy: no-referrer\n  X-Content-Type-Options: nosniff\n  X-Frame-Options: DENY\n  Permissions-Policy: camera=(), microphone=(), geolocation=()\n  Content-Security-Policy: default-src 'self'; script-src 'self'; connect-src 'self'; worker-src 'self' blob:; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'\n\n/api/*\n  Cache-Control: no-store\n','utf8');
