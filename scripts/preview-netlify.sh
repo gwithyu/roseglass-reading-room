@@ -10,7 +10,7 @@ NODE_MAJOR="$(node -p 'parseInt(process.versions.node.split(".")[0],10)')"
 if (( NODE_MAJOR < 22 )); then
   echo 'Node.js 22+ is required. In your Mac terminal: nvm use 22' >&2; exit 1
 fi
-if [[ ! -f netlify.toml || ! -f netlify/functions/chat.mjs || ! -f scripts/build-public.mjs ]]; then
+if [[ ! -f netlify.toml || ! -f netlify/functions/chat.mjs || ! -f netlify/functions/health.mjs || ! -f scripts/build-public.mjs ]]; then
   echo 'Missing public standalone site files; do not deploy.' >&2; exit 1
 fi
 if command -v git >/dev/null 2>&1 && git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
@@ -30,6 +30,16 @@ node --test \
 
 echo '=== Build public-only files ==='
 node scripts/build-public.mjs
+
+echo '=== Bundle Netlify API Functions locally before asking to deploy ==='
+FN_CHECK_DIR="$(mktemp -d "${TMPDIR:-/tmp}/roseglass-functions-preflight.XXXXXX")"
+trap 'rm -rf "$FN_CHECK_DIR"' EXIT
+npx --yes netlify-cli@latest functions:build --src netlify/functions --functions "$FN_CHECK_DIR"
+if ! find "$FN_CHECK_DIR" -type f | grep -q .; then
+  echo 'Netlify produced no Function build artifacts; refusing to deploy.' >&2
+  exit 1
+fi
+echo 'Local Netlify Function packaging passed.'
 
 echo
 echo 'Netlify Functions require an authenticated Netlify account (Free is supported).'
