@@ -6,6 +6,7 @@ import {makePageImage,canvasPngBlob,samePageSnapshot,buildVisualPrompt,exportSiz
 import {relayImageToChat} from './chat-image-bridge.mjs';
 import {makeChallenge,paintChallenge,BLIND_PROMPT} from './vision-challenge.mjs';
 import {initAiChat} from './ai-chat.mjs';
+import {initInviteLinks} from './invite-links.mjs';
 const $ = (id) => document.getElementById(id);
 const ui = {
   file: $('file-input'), open: $('open-file'), filename: $('filename'), kind: $('file-kind'),
@@ -548,6 +549,7 @@ initAiChat({notice,getContext:async({includeImage})=>{
   }
   return {documentKey,text,image};
 }});
+initInviteLinks();
 restoreZoom();updateZoomUI();renderDemo();
 let resizeTimer;new ResizeObserver(()=>{clearTimeout(resizeTimer);resizeTimer=setTimeout(()=>render(),110);}).observe(ui.viewport);
 let dragDepth=0;window.addEventListener('dragenter',e=>{if(!e.dataTransfer?.types?.includes('Files'))return;e.preventDefault();dragDepth++;$('drop-hint').classList.remove('hidden');});window.addEventListener('dragover',e=>{if(e.dataTransfer?.types?.includes('Files'))e.preventDefault();});window.addEventListener('dragleave',()=>{dragDepth--;if(dragDepth<=0){dragDepth=0;$('drop-hint').classList.add('hidden');}});window.addEventListener('drop',e=>{e.preventDefault();dragDepth=0;$('drop-hint').classList.add('hidden');loadFile(e.dataTransfer?.files?.[0]);});
