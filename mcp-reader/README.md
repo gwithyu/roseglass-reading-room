@@ -1,4 +1,4 @@
-# Roseglass MCP Reader 1.0.0
+# Roseglass MCP Reader 1.0.1
 
 Browser-local PDF co-reading UI and a self-contained MCP Worker. **Original Roseglass code is restricted to unmodified private personal non-commercial use, with no derivatives or redistribution (see ../LICENSE).** This subdirectory provides an MCP implementation for permitted personal use; the original standalone PDF/PPTX app at the repository root remains separate.
 
