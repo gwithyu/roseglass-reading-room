@@ -18,6 +18,11 @@ export function parseInviteId(hash){
   const match=/^#rg-invite=([0-9a-f]{32})$/.exec(hash||'');
   return match?match[1]:null;
 }
+/** Same-device notes/bookmarks for the same PDF stay separate across invite URLs. */
+export function scopeDocumentKey(fingerprint,inviteId){
+  if(typeof fingerprint!=='string'||!fingerprint)return fingerprint;
+  return /^[0-9a-f]{32}$/.test(inviteId||'')?`invite:${inviteId}:${fingerprint}`:fingerprint;
+}
 export function isShareablePage(currentUrl){
   let url;
   try{url=new URL(currentUrl);}catch{return false;}
