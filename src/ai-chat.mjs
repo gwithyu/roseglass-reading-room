@@ -1,59 +1,105 @@
-/** Public standalone reader only. Ephemeral BYOK UI, no credentials stored or shared. */
-const PRESETS={
-  ollama:{model:'llava',vision:true},
-  openai:{model:'gpt-4.1-mini',vision:true},
-  deepseek:{model:'deepseek-chat',vision:false}
-};
+/** Public Roseglass standalone AI panel. BYOK keys live only in this tab's password input. */
+const PRESETS=Object.freeze({
+  ollama:{model:'llava',vision:true,local:true},
+  deepseek:{model:'deepseek-chat',vision:false},
+  qwen:{model:'qwen-plus',vision:true,pagesOnly:true},
+  kimi:{model:'kimi-k2-thinking',vision:false,pagesOnly:true},
+  openai:{model:'gpt-4.1-mini',vision:true}
+});
 const $=id=>document.getElementById(id);
 export function initAiChat({getContext,notice=()=>{}}){
-  const panel=$('ai-panel'),open=$('open-ai'),close=$('close-ai'),provider=$('ai-provider'),model=$('ai-model'),question=$('ai-question'),send=$('ai-send'),history=$('ai-messages'),status=$('ai-status'),image=$('ai-image'),cloudConsent=$('ai-cloud-consent');
-  let conversation=[],currentDocument=null,working=false;
-  const append=(role,content)=>{
-    const p=document.createElement('p');p.className=`ai-bubble ${role}`;p.textContent=content;history.append(p);history.scrollTop=history.scrollHeight;
-  };
-  const updateProvider=()=>{
-    const preset=PRESETS[provider.value];model.value=preset.model;
-    image.disabled=!preset.vision;
-    if(!preset.vision)image.checked=false;
-    cloudConsent.checked=false;
-    cloudConsent.disabled=provider.value==='ollama';
-    status.textContent=provider.value==='ollama'?'本机 Ollama 需提前安装并下载相应模型；不会产生云端 API 费用。':'云端 API Key 只从本机服务的环境变量读取；服务商可能对你收费。';
+  const panel=$('ai-panel'),open=$('open-ai'),close=$('close-ai');
+  const provider=$('ai-provider'),model=$('ai-model'),question=$('ai-question');
+  const send=$('ai-send'),history=$('ai-messages'),status=$('ai-status');
+  const image=$('ai-image'),cloudConsent=$('ai-cloud-consent');
+  const keyInput=$('ai-api-key'),keyWrap=$('ai-key-wrap');
+  let conversation=[],currentDocument=null,working=false,mode=null;
+
+  const clearHistory=()=>{
     conversation=[];currentDocument=null;history.replaceChildren();
   };
+  const clearKey=()=>{keyInput.value='';};
+  const append=(role,content)=>{
+    const p=document.createElement('p');p.className=`ai-bubble ${role}`;
+    p.textContent=content;history.append(p);history.scrollTop=history.scrollHeight;
+  };
+  const updateProvider=()=>{
+    const chosen=PRESETS[provider.value]||PRESETS.deepseek;
+    model.value=chosen.model;image.disabled=!chosen.vision;
+    if(!chosen.vision)image.checked=false;
+    cloudConsent.checked=false;
+    cloudConsent.disabled=provider.value==='ollama';
+    const usePageKey=mode==='pages-byok'&&provider.value!=='ollama';
+    keyWrap.classList[usePageKey?'remove':'add']('hidden');
+    clearKey();clearHistory();
+    if(mode==='pages-byok'){
+      status.textContent='个人 API Key 仅保留在当前页面输入框，发送时经过 Roseglass 中转到所选服务商。不会保存在本站；服务商可能计费。';
+    }else{
+      status.textContent=provider.value==='ollama'
+        ?'本机 Ollama 需预先安装模型；不会产生云端 API 费用。'
+        :'本机模式：Key 只从你自己电脑的服务端环境变量读取，API 可能收费。';
+    }
+  };
   const availability=async()=>{
-    try{const response=await fetch('/api/health',{cache:'no-store'});const data=await response.json();
-      if(!response.ok||data?.mode!=='local-only')throw new Error();
-      return true;
-    }catch{return false;}
+    try{
+      const response=await fetch('/api/health',{cache:'no-store'});
+      const data=await response.json();
+      if(!response.ok||!['local-only','pages-byok'].includes(data?.mode))return null;
+      return data.mode;
+    }catch{return null;}
   };
   open.addEventListener('click',async()=>{
     panel.classList.remove('hidden');panel.setAttribute('aria-hidden','false');
-    status.textContent='正在检查本机 API 服务…';
-    const ready=await availability();
-    status.textContent=ready?'本机接口已连接。只有点击“发送问题”才会提交本页内容。':'未连接本机 API 服务。请在仓库目录运行 node local-api/server.mjs，然后打开 http://127.0.0.1:8787';
+    status.textContent='正在检查 API 接口…';
+    const checked=await availability();
+    mode=checked;
+    if(mode==='pages-byok'&&provider.value==='ollama')provider.value='deepseek';
+    if(mode==='local-only'&&PRESETS[provider.value]?.pagesOnly)provider.value='ollama';
+    updateProvider();
+    if(!mode)status.textContent='未找到 API 接口；若是本地安装，请启动 node local-api/server.mjs，公开版需要部署 Pages Functions。';
     question.focus();
   });
-  close.addEventListener('click',()=>{panel.classList.add('hidden');panel.setAttribute('aria-hidden','true');open.focus();});
-  panel.addEventListener('keydown',e=>{if(e.key==='Escape')close.click();if((e.metaKey||e.ctrlKey)&&e.key==='Enter'){e.preventDefault();send.click();}});
+  close.addEventListener('click',()=>{
+    clearKey();panel.classList.add('hidden');panel.setAttribute('aria-hidden','true');open.focus();
+  });
+  panel.addEventListener('keydown',e=>{
+    if(e.key==='Escape')close.click();
+    if((e.metaKey||e.ctrlKey)&&e.key==='Enter'){e.preventDefault();send.click();}
+  });
   provider.addEventListener('change',updateProvider);
-  $('ai-reset').addEventListener('click',()=>{conversation=[];currentDocument=null;history.replaceChildren();status.textContent='本标签页的临时对话已清空。';});
+  $('ai-reset').addEventListener('click',()=>{
+    clearHistory();clearKey();status.textContent='临时对话和 API Key 输入已清空。';
+  });
   send.addEventListener('click',async()=>{
     if(working)return;
-    const prompt=question.value.trim();if(!prompt)return notice('先写下你想问的内容');
-    if(provider.value!=='ollama' && !cloudConsent.checked){status.textContent='云端 API 可能产生费用；需要先勾选自愿使用个人额度。';return;}
+    const prompt=question.value.trim();
+    if(!prompt)return notice('先写下你想问的内容');
+    if(!mode){status.textContent='API 接口尚未连接。';return;}
+    if(mode==='pages-byok'&&provider.value==='ollama'){status.textContent='公共网页不能访问你的本机 Ollama；请选择云端 API。';return;}
+    if(mode==='local-only'&&PRESETS[provider.value]?.pagesOnly){status.textContent='此服务商需要公开 Pages API 模式。';return;}
+    if(provider.value!=='ollama'&&!cloudConsent.checked){
+      status.textContent='请先勾选确认：使用自己的 AI API 可能产生费用。';return;
+    }
+    const key=mode==='pages-byok'?keyInput.value.trim():undefined;
+    if(mode==='pages-byok'&&(!key||key.length<8)){
+      status.textContent='请输入你自己的有效 API Key；本页面不会保存密钥。';return;
+    }
     working=true;send.disabled=true;status.textContent='正在整理当前页…';
     try{
       const page=await getContext({includeImage:image.checked});
-      if(currentDocument!==page.documentKey){currentDocument=page.documentKey;conversation=[];history.replaceChildren();}
-      const text=`你是共读助手。只能依据提供的真实文字及你实际收到的图像分析，遇到无法确认的内容要说明.\n${page.text.slice(0,16000)}\n\n用户的问题：${prompt}`;
-      const next=[...conversation.slice(-6),{role:'user',content:text}];
-      status.textContent='已准备好内容；正在请求你选择的 AI 服务（可能消耗你自己的 API 额度）…';
-      const response=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({provider:provider.value,model:model.value.trim(),messages:next,image:page.image||null})});
+      if(currentDocument!==page.documentKey){clearHistory();currentDocument=page.documentKey;}
+      const text=`你是共读助手。只能依据实际收到的课件文字和页面图像分析；看不到就明确说明。\n${page.text.slice(0,16000)}\n\n问题：${prompt}`;
+      const messages=[...conversation.slice(-6),{role:'user',content:text}];
+      status.textContent='正在调用你自己的 AI API；请留意个人账户额度…';
+      const request={provider:provider.value,model:model.value.trim(),messages,image:page.image||null};
+      if(mode==='pages-byok')request.key=key;
+      const response=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},cache:'no-store',referrerPolicy:'no-referrer',body:JSON.stringify(request)});
       const data=await response.json();
       if(!response.ok)throw new Error(data?.error||`HTTP ${response.status}`);
       append('user',prompt);append('assistant',data.answer);
-      conversation=[...next,{role:'assistant',content:data.answer}].slice(-8);
-      question.value='';status.textContent='讲解完成。对话仅保留在本标签页内存中；服务商有自己的数据处理政策。';
+      conversation=[...messages,{role:'assistant',content:data.answer}].slice(-8);
+      question.value='';
+      status.textContent='讲解完成。当前标签页暂存对话；API 服务商可能另行记录与处理所发送的内容。';
     }catch(err){status.textContent=String(err.message||'发送失败');}
     finally{working=false;send.disabled=false;}
   });
