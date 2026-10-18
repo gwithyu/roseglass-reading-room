@@ -76,7 +76,7 @@ Roseglass 原创代码采用 [仅限个人非商业使用、禁止修改与衍�
 
 **密钥安全：** Key 仅保留在本页输入框内，切换提供商、关闭面板或清空对话会移除；不会写入浏览器长期存储或 GitHub。**但密钥会经过此网站的 Cloudflare Pages Functions 代理**，再发送到对应服务商，因此只能在自己信任的 Roseglass 网页和域名输入。服务商与基础设施提供商可能按各自政策处理流量；部署方不得记录请求体或密钥。
 
-现有本机 Ollama + 本地 API 代理仍可独立使用，详见下节。PDF.js 已随仓库提供，PDF 页面阅读不需要境外 PDF.js CDN；PPTX 仍使用外部解析模块，受限网络下可能需要先转换为 PDF。
+现有本机 Ollama + 本地 API 代理仍可独立使用，详见下节。PDF.js 已随仓库提供，PDF 页面阅读不需要境外 PDF.js CDN。**为避免第三方脚本接触个人 API Key，公开 Pages BYOK 构建暂时禁用 PPTX 直读，使用者应先导出为 PDF。** 普通本地阅读器仍保留原 PPTX 路径，但存在联网解析依赖。
 
 **零收费 GitHub Actions 的部署指南：** [Cloudflare Pages 公开版部署](docs/PAGES_DEPLOY.md)。目前仍是未发布的 Draft PR，尚未创建实际公开网址。
 
