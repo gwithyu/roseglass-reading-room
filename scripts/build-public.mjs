@@ -19,6 +19,16 @@ for(const entry of required){
   await mkdir(dirname(output),{recursive:true});
   await cp(input,output,{recursive:true,force:true});
 }
+// Do not load a third-party PPTX JS module in the same page that accepts API Keys.
+// Until a locally audited PPTX bundle is available, the hosted BYOK build accepts PDF.
+const appFile=resolve(dist,'src/app.js');
+let app=await readFile(appFile,'utf8');
+const remote="const {PptxRenderer} = await import('https://esm.sh/pptx-browser@4.1.5?bundle');";
+if(!app.includes(remote))throw Error('PPTX dependency changed; re-audit before publishing');
+app=app.replace(remote,"throw new Error('公共 API 版暂时只支持 PDF。请将 PPTX 导出为 PDF，以保护个人 API Key。');");
+if(/https?:\\/\\/(?:cdn\\.|esm\\.)/i.test(app))throw Error('Unaudited external executable dependency detected');
+await writeFile(appFile,app,'utf8');
+
 // Help prevent accidental source disclosure in the public static artifact.
 const html=await readFile(resolve(dist,'index.html'),'utf8');
 if(!html.includes('./src/app.js')||!html.includes('id="ai-panel"'))throw Error('public UI entry is incomplete');
