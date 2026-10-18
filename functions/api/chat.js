@@ -56,8 +56,14 @@ export async function handleChat(request,{fetchImpl=fetch}={}){
   let raw;
   try{raw=await request.arrayBuffer();}catch{return answer(400,{error:'请求读取失败'});}
   if(raw.byteLength>MAX_BYTES)return answer(413,{error:'请求过大'});
+  // Never reflect native JSON.parse errors: modern engines may include a snippet of
+  // the malformed request body, which can accidentally contain a personal API Key.
+  let payload;
+  try{payload=JSON.parse(new TextDecoder().decode(raw));}
+  catch{return answer(400,{error:'JSON 格式无效'});}
   let input;
-  try{input=validateRequest(JSON.parse(new TextDecoder().decode(raw)));}catch(error){return answer(400,{error:String(error.message||'请求无效').slice(0,140)});}
+  try{input=validateRequest(payload);}
+  catch(error){return answer(400,{error:String(error.message||'请求无效').slice(0,140)});}
   let upstream;
   try{
     const controller=new AbortController();
