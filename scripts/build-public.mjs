@@ -30,8 +30,15 @@ if(app.includes('https://esm.sh/')||app.includes('https://cdn.jsdelivr.net/'))th
 await writeFile(appFile,app,'utf8');
 
 // Help prevent accidental source disclosure in the public static artifact.
-const html=await readFile(resolve(dist,'index.html'),'utf8');
-if(!html.includes('./src/app.js')||!html.includes('id="ai-panel"'))throw Error('public UI entry is incomplete');
+let html=await readFile(resolve(dist,'index.html'),'utf8');
+if(!html.includes('./src/app.js')||!html.includes('id="ai-panel"')||!html.includes('id="invite-panel"'))throw Error('public UI entry is incomplete');
+// The hosted public reader uses personal API, not ChatGPT-only embedded host features.
+const hostButton='id="send-chat" class="bottom-button primary"';
+const visionHostButton='id="send-vision" class="soft-button vision-primary"';
+if(!html.includes(hostButton)||!html.includes(visionHostButton))throw Error('ChatGPT host buttons changed: re-audit hosted build');
+html=html.replace(hostButton,'id="send-chat" class="bottom-button primary hidden"');
+html=html.replace(visionHostButton,'id="send-vision" class="soft-button vision-primary hidden"');
+await writeFile(resolve(dist,'index.html'),html,'utf8');
 await writeFile(resolve(dist,'_headers'),
   '/*\n  Referrer-Policy: no-referrer\n  X-Content-Type-Options: nosniff\n  X-Frame-Options: DENY\n  Permissions-Policy: camera=(), microphone=(), geolocation=()\n\n/api/*\n  Cache-Control: no-store\n','utf8');
 console.log('Public-only static assets prepared:',dist);
