@@ -6,7 +6,7 @@ const PRESETS={
 };
 const $=id=>document.getElementById(id);
 export function initAiChat({getContext,notice=()=>{}}){
-  const panel=$('ai-panel'),open=$('open-ai'),close=$('close-ai'),provider=$('ai-provider'),model=$('ai-model'),question=$('ai-question'),send=$('ai-send'),history=$('ai-messages'),status=$('ai-status'),image=$('ai-image');
+  const panel=$('ai-panel'),open=$('open-ai'),close=$('close-ai'),provider=$('ai-provider'),model=$('ai-model'),question=$('ai-question'),send=$('ai-send'),history=$('ai-messages'),status=$('ai-status'),image=$('ai-image'),cloudConsent=$('ai-cloud-consent');
   let conversation=[],currentDocument=null,working=false;
   const append=(role,content)=>{
     const p=document.createElement('p');p.className=`ai-bubble ${role}`;p.textContent=content;history.append(p);history.scrollTop=history.scrollHeight;
@@ -15,6 +15,8 @@ export function initAiChat({getContext,notice=()=>{}}){
     const preset=PRESETS[provider.value];model.value=preset.model;
     image.disabled=!preset.vision;
     if(!preset.vision)image.checked=false;
+    cloudConsent.checked=false;
+    cloudConsent.disabled=provider.value==='ollama';
     status.textContent=provider.value==='ollama'?'本机 Ollama 需提前安装并下载相应模型；不会产生云端 API 费用。':'云端 API Key 只从本机服务的环境变量读取；服务商可能对你收费。';
     conversation=[];currentDocument=null;history.replaceChildren();
   };
@@ -38,6 +40,7 @@ export function initAiChat({getContext,notice=()=>{}}){
   send.addEventListener('click',async()=>{
     if(working)return;
     const prompt=question.value.trim();if(!prompt)return notice('先写下你想问的内容');
+    if(provider.value!=='ollama' && !cloudConsent.checked){status.textContent='云端 API 可能产生费用；需要先勾选自愿使用个人额度。';return;}
     working=true;send.disabled=true;status.textContent='正在整理当前页…';
     try{
       const page=await getContext({includeImage:image.checked});
