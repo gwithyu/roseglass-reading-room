@@ -72,3 +72,17 @@ test('oversize declared request returns 413 without contacting provider',async()
   assert.equal(reply.status,413);
   assert.equal(calls,0);
 });
+
+test('malformed JSON never echoes accidental personal API keys',async()=>{
+  const secret='personal-secret-must-not-appear';
+  const req=new Request('https://roseglass-test.pages.dev/api/chat',{
+    method:'POST',
+    headers:{'Origin':'https://roseglass-test.pages.dev','Content-Type':'application/json'},
+    body:'{\"key\":\"'+secret+'\",invalid'
+  });
+  const reply=await handleChat(req,{fetchImpl:async()=>{throw Error('do not contact AI')}});
+  assert.equal(reply.status,400);
+  const text=JSON.stringify(await reply.json());
+  assert.equal(text.includes(secret),false);
+  assert.match(text,/JSON 格式无效/);
+});
