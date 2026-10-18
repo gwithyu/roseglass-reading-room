@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createInviteUrl,parseInviteId,isShareablePage,initInviteLinks} from '../src/invite-links.mjs';
+import {createInviteUrl,parseInviteId,isShareablePage,scopeDocumentKey,initInviteLinks} from '../src/invite-links.mjs';
 
 function deterministicCrypto(){
   let generation=0;
@@ -68,4 +68,15 @@ test('localhost reader never produces an unusable share URL',async()=>{
   assert.equal(nodes['invite-url'].value,'');
   assert.equal(nodes['invite-copy'].disabled,true);
   assert.match(nodes['invite-status'].textContent,/本机/);
+});
+
+test('distinct invite IDs isolate local notes/bookmarks even for identical PDF fingerprint',()=>{
+  const original='cadcaca5ddcc12340badfeed';
+  const one='00000000000000000000000000000001';
+  const two='00000000000000000000000000000002';
+  const a=scopeDocumentKey(original,one);
+  const b=scopeDocumentKey(original,two);
+  assert.notEqual(a,b);
+  assert.equal(scopeDocumentKey(original,null),original);
+  assert.equal(scopeDocumentKey(original,'invalid'),original);
 });
