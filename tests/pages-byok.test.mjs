@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {handleChat,validateRequest} from '../functions/api/chat.js';
+import {handleChat,validateRequest,MAX_BYTES,UPSTREAM_TIMEOUT_MS} from '../functions/api/chat.js';
 import {onRequestGet as health} from '../functions/api/health.js';
 
 function request(payload,{origin='https://roseglass-test.pages.dev',method='POST'}={}){
@@ -47,4 +47,28 @@ test('provider errors hide upstream response and credential',async()=>{
   const body=JSON.stringify(await res.json());
   assert.doesNotMatch(body,/user-key-placeholder/);
   assert.match(body,/401/);
+});
+
+test('hosted BYOK obeys Netlify Free synchronous Function limits',()=>{
+  assert.ok(MAX_BYTES<=4_800_000);
+  assert.ok(UPSTREAM_TIMEOUT_MS<60_000);
+  assert.throws(()=>validateRequest({
+    ...base,provider:'openai',model:'gpt-4.1-mini',
+    image:'data:image/png;base64,'+'A'.repeat(4_300_001)
+  }),/图片过大/);
+});
+test('oversize declared request returns 413 without contacting provider',async()=>{
+  let calls=0;
+  const req=new Request('https://roseglass-test.pages.dev/api/chat',{
+    method:'POST',
+    headers:{
+      'Origin':'https://roseglass-test.pages.dev',
+      'Content-Type':'application/json',
+      'Content-Length':String(MAX_BYTES+1)
+    },
+    body:JSON.stringify(base)
+  });
+  const reply=await handleChat(req,{fetchImpl:async()=>{calls++;throw Error('provider should not be called');}});
+  assert.equal(reply.status,413);
+  assert.equal(calls,0);
 });
