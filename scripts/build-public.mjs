@@ -9,6 +9,8 @@ await mkdir(dist,{recursive:true});
 const required=[
   'index.html',
   'src',
+  'LICENSE',
+  'THIRD_PARTY_NOTICES.md',
   'mcp-reader/worker/vendor/pdf.min.mjs',
   'mcp-reader/worker/vendor/pdf.worker.min.mjs'
 ];
