@@ -91,3 +91,6 @@ Run `node --test tests/*.test.mjs && node tests/smoke.mjs` to validate local log
 ### Private-site upgrade boundary
 
 This independent public repository does not control the private ChatGPT Site project. Preserving the existing Sites project and plugin identity requires editing its original Sites UI source in ChatGPT Work or a writable Sites project editor. Do not deploy this repository over the private project or overwrite its connector. See the private migration kit distributed separately; no private URLs or credentials are included here.
+## MCP PDF reader and offline OCR (16.3.1)
+
+A reusable, self-contained MCP PDF reader is now available in [`mcp-reader/`](mcp-reader/README.md). It adds point/region/whole-page messages, linked text/page/crop images, bounded host-acceptance receipts, long-PDF workflows and offline Chinese/English/German OCR. The standalone app above remains independent; its earlier statement that OCR is out of scope applies to the root starter. See the subdirectory for build instructions, third-party licenses and the distinction between automated tests and real ChatGPT host verification.

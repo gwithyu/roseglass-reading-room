@@ -1,0 +1,16 @@
+{
+  "name": "roseglass-mcp-reader",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "bash scripts/build.sh",
+    "validate": "node scripts/validate-artifact.mjs && node scripts/check-mcp.mjs",
+    "test": "node --experimental-vm-modules --test scripts/check-reader.mjs scripts/check-zoom.mjs scripts/check-management.mjs scripts/reading-selection.test.mjs scripts/reading-delivery.test.mjs scripts/check-frame.mjs scripts/check-ocr.mjs"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "devDependencies": {
+    "skia-canvas": "3.0.8"
+  }
+}
