@@ -19,6 +19,8 @@ test('hosted BYOK bundle contains no remote PPTX module or private server code',
   assert.match(app,/暂时只支持 PDF/);
   assert.match(html,/id="ai-api-key" type="password"/);
   assert.match(html,/id="invite-panel"/);
+  assert.match(html,/accept=".pdf,application\/pdf"/);
+  assert.doesNotMatch(html,/accept=".pdf,.pptx/);
   assert.match(html,/id="send-chat" class="bottom-button primary hidden"/);
   assert.match(html,/id="send-vision" class="soft-button vision-primary hidden"/);
   for(const path of ['LICENSE','THIRD_PARTY_NOTICES.md','mcp-reader/worker/vendor/pdf.min.mjs','mcp-reader/worker/vendor/pdf.worker.min.mjs']){
