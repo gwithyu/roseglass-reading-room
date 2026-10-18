@@ -55,7 +55,7 @@ export async function invokeModel(input,{fetchImpl=fetch,signal}={}) {
 }
 
 function json(res,status,body){res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer'});res.end(JSON.stringify(body));}
-export function makeHandler({port=8787,fetchImpl=fetch,root=ROOT,keys={openai:process.env.OPENAI_API_KEY||'',deepseek:process.env.DEEPSEEK_API_KEY||''}}={}) {
+export function makeHandler({port=8787,fetchImpl=fetch,root=ROOT,keys={openai:process.env.OPENAI_API_KEY||'',deepseek:process.env.DEEPSEEK_API_KEY||''},cloudEnabled=process.env.ROSEGLASS_ENABLE_CLOUD==='1'}={}) {
   const host=`127.0.0.1:${port}`;
   return async (req,res)=>{
     try {
@@ -70,6 +70,7 @@ export function makeHandler({port=8787,fetchImpl=fetch,root=ROOT,keys={openai:pr
         for await (const part of req){total+=part.length;if(total>LIMIT)return json(res,413,{error:'请求内容过大'});parts.push(part);}
         let input;
         try {input=JSON.parse(Buffer.concat(parts).toString('utf8'));} catch {return json(res,400,{error:'JSON 格式错误'});}
+        if (input?.provider !== 'ollama' && !cloudEnabled) return json(res,403,{error:'云端 AI 默认关闭。仅由使用者自愿设置 ROSEGLASS_ENABLE_CLOUD=1 后开放。'});
         try { const answer=await invokeModel({...input,key:keys[input.provider]||''},{fetchImpl});return json(res,200,{answer}); }
         catch(err){return json(res,400,{error:String(err.message||'请求失败').slice(0,240)});}
       }
@@ -89,9 +90,9 @@ export function makeHandler({port=8787,fetchImpl=fetch,root=ROOT,keys={openai:pr
     } catch {if(!res.headersSent)json(res,404,{error:'找不到文件'});else res.end();}
   };
 }
-export function startServer({port=8787,host='127.0.0.1',fetchImpl=fetch,root=ROOT,keys}={}){
+export function startServer({port=8787,host='127.0.0.1',fetchImpl=fetch,root=ROOT,keys,cloudEnabled}={}){
   if (host !== '127.0.0.1') throw new Error('出于安全原因，仅允许本机绑定');
-  const server=http.createServer(makeHandler({port,fetchImpl,root,keys}));
+  const server=http.createServer(makeHandler({port,fetchImpl,root,keys,cloudEnabled}));
   return new Promise((resolve,reject)=>{server.once('error',reject);server.listen(port,host,()=>resolve(server));});
 }
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
