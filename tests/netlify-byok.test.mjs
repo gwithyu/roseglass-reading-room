@@ -74,7 +74,7 @@ test('preview helper cannot perform accidental production deployment',async()=>{
 
 test('Netlify preflight rejects partial API bundles and accepts both function outputs',async()=>{
   const script=await readFile(new URL('../scripts/preview-netlify.sh',import.meta.url),'utf8');
-  const loop=script.match(/for fn in chat health; do[\\s\\S]*?\\ndone/);
+  const loop=script.match(/for fn in chat health; do[\s\S]*?\ndone/);
   assert.ok(loop,'both required API routes must be checked');
   const dir=await mkdtemp(join(tmpdir(),'roseglass-bundle-gate-'));
   const execute=()=>spawnSync('bash',['-c',loop[0]],{
