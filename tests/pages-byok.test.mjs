@@ -86,3 +86,40 @@ test('malformed JSON never echoes accidental personal API keys',async()=>{
   assert.equal(text.includes(secret),false);
   assert.match(text,/JSON 格式无效/);
 });
+
+test('timeout protects the full model response body, not just response headers',async()=>{
+  let observedSignal;
+  const started=Date.now();
+  const reply=await handleChat(request(base),{
+    timeoutMs:20,
+    fetchImpl:async(_url,options)=>{
+      observedSignal=options.signal;
+      return {
+        ok:true,
+        json:()=>new Promise((_resolve,reject)=>{
+          options.signal.addEventListener('abort',()=>reject(new Error('response stream cancelled')),{once:true});
+        })
+      };
+    }
+  });
+  assert.equal(reply.status,504);
+  assert.equal(observedSignal.aborted,true);
+  assert.ok(Date.now()-started<1000,'test timeout should not wait 45s');
+  const body=JSON.stringify(await reply.json());
+  assert.match(body,/超时/);
+  assert.doesNotMatch(body,/user-key-placeholder/);
+});
+test('successful full model response read clears its abort timer',async()=>{
+  let signal;
+  const reply=await handleChat(request(base),{
+    timeoutMs:25,
+    fetchImpl:async(_url,options)=>{
+      signal=options.signal;
+      return {ok:true,json:async()=>({choices:[{message:{content:'模型模拟回复'}}]})};
+    }
+  });
+  assert.equal(reply.status,200);
+  assert.equal((await reply.json()).answer,'模型模拟回复');
+  await new Promise(resolve=>setTimeout(resolve,45));
+  assert.equal(signal.aborted,false,'do not leave an abort timer active after completion');
+});
