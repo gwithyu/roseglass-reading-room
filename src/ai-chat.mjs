@@ -2,7 +2,7 @@
 const PRESETS=Object.freeze({
   ollama:{model:'llava',vision:true,local:true},
   deepseek:{model:'deepseek-chat',vision:false},
-  qwen:{model:'qwen-plus',vision:true,pagesOnly:true},
+  qwen:{model:'qwen3-vl-plus',vision:true,pagesOnly:true},
   kimi:{model:'kimi-k2-thinking',vision:false,pagesOnly:true},
   openai:{model:'gpt-4.1-mini',vision:true}
 });
