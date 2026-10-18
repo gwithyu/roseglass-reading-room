@@ -27,6 +27,13 @@ const remote="const {PptxRenderer} = await import('https://esm.sh/pptx-browser@4
 if(!app.includes(remote))throw Error('PPTX dependency changed; re-audit before publishing');
 app=app.replace(remote,"throw new Error('公共 API 版暂时只支持 PDF。请将 PPTX 导出为 PDF，以保护个人 API Key。');");
 if(app.includes('https://esm.sh/')||app.includes('https://cdn.jsdelivr.net/'))throw Error('Unaudited external executable dependency detected');
+
+const legacyFullChatButton='id="send-full" class="bottom-button secondary"';
+const oldReaderStatus="setStatus('浏览器本地阅读 · 无后台上传 · 选 PDF/PPTX 开始');";
+if(!app.includes(legacyFullChatButton)||!app.includes(oldReaderStatus))throw Error('Host-only public UI changed: re-audit before publishing');
+app=app.replace(legacyFullChatButton,'id="send-full" class="bottom-button secondary hidden"');
+app=app.replace(oldReaderStatus,"setStatus('独立 PDF 共读 · 连接自己的 AI API · 无需 ChatGPT Plus');");
+
 await writeFile(appFile,app,'utf8');
 
 // Help prevent accidental source disclosure in the public static artifact.
@@ -38,6 +45,10 @@ const visionHostButton='id="send-vision" class="soft-button vision-primary"';
 if(!html.includes(hostButton)||!html.includes(visionHostButton))throw Error('ChatGPT host buttons changed: re-audit hosted build');
 html=html.replace(hostButton,'id="send-chat" class="bottom-button primary hidden"');
 html=html.replace(visionHostButton,'id="send-vision" class="soft-button vision-primary hidden"');
+const visionToolbar='id="toggle-vision-test" class="tool-button"';
+if(!html.includes(visionToolbar))throw Error('Vision host toolbar changed: re-audit hosted build');
+html=html.replace(visionToolbar,'id="toggle-vision-test" class="tool-button hidden"');
+
 const multiFormat='accept=".pdf,.pptx,application/pdf,application/vnd.openxmlformats-officedocument.presentationml.presentation"';
 if(!html.includes(multiFormat))throw Error('File input changed: review PPTX boundary');
 html=html.replace(multiFormat,'accept=".pdf,application/pdf"').replaceAll('打开 PDF 或 PPTX','打开 PDF');
